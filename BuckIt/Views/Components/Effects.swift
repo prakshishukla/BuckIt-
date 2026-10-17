@@ -52,12 +52,12 @@ struct AnimatedCheckmark: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Theme.evergreen)
+                .fill(Theme.teal)
                 .scaleEffect(progress > 0 ? 1 : 0.4)
                 .opacity(progress > 0 ? 1 : 0)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(Theme.evergreen.opacity(0.35), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .stroke(Theme.teal.opacity(0.35), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .padding(-10)
             CheckShape()
@@ -80,7 +80,7 @@ struct SplashView: View {
             ForEach(0..<7, id: \.self) { i in
                 Image(systemName: "drop.fill")
                     .font(.system(size: i.isMultiple(of: 2) ? 16 : 11))
-                    .foregroundStyle(Theme.water)
+                    .foregroundStyle(Theme.primary)
                     .phaseAnimator([0, 1, 2], trigger: trigger) { view, phase in
                         let angle = Double.pi + Double(i) / 6 * Double.pi
                         let distance: Double = phase == 0 ? 0 : (phase == 1 ? 60 : 78)

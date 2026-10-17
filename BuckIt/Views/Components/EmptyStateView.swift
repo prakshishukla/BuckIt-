@@ -17,14 +17,14 @@ struct EmptyStateView: View {
             } else if let symbol {
                 Image(systemName: symbol)
                     .font(.system(size: 44, weight: .semibold))
-                    .foregroundStyle(Theme.water.gradient)
+                    .foregroundStyle(Theme.primary.gradient)
             }
             Text(title)
-                .font(.rounded(.title3))
+                .font(.display(.title3))
                 .multilineTextAlignment(.center)
             if let message {
                 Text(message)
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -49,7 +49,7 @@ struct ToastModifier: ViewModifier {
             .overlay(alignment: .top) {
                 if let message {
                     Label(message, systemImage: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.app(.subheadline, weight: .semibold))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 11)
                         .background(.regularMaterial, in: Capsule())

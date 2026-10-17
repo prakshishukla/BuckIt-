@@ -22,12 +22,12 @@ struct CommentsSheet: View {
                             AvatarView(user: author, size: 34)
                             VStack(alignment: .leading, spacing: 3) {
                                 HStack {
-                                    Text(author?.firstName ?? "Someone").font(.subheadline.bold())
+                                    Text(author?.firstName ?? "Someone").font(.app(.subheadline, weight: .bold))
                                     Text(comment.date.formatted(.relative(presentation: .named)))
-                                        .font(.caption)
+                                        .font(.app(.caption))
                                         .foregroundStyle(.secondary)
                                 }
-                                Text(comment.text).font(.subheadline)
+                                Text(comment.text).font(.app(.subheadline))
                             }
                         }
                         .listRowSeparator(.hidden)
@@ -45,7 +45,7 @@ struct CommentsSheet: View {
                         .padding(.vertical, 10)
                         .background(Color.secondary.opacity(0.12), in: Capsule())
                     Button(action: send) {
-                        Image(systemName: "arrow.up.circle.fill").font(.title)
+                        Image(systemName: "arrow.up.circle.fill").font(.app(.title))
                     }
                     .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
                     .accessibilityLabel("Send")

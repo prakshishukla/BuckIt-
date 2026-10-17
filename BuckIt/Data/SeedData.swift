@@ -28,7 +28,7 @@ enum SeedData {
 
     static var me: User {
         User(id: meID, firstName: "Buck", lastName: "It", city: "Seattle", season: .summer, commitment: .medium,
-             groupIDs: [crewGroupID], wallet: [], completedCount: 0, isOnBuckIt: true)
+             groupIDs: [crewGroupID, trailGroupID, islandGroupID], wallet: [], completedCount: 0, isOnBuckIt: true)
     }
 
     static let friends: [User] = [
@@ -52,6 +52,26 @@ enum SeedData {
         BuckGroup(id: crewGroupID, name: crewGroupName, emoji: "🌊", memberIDs: [meID],
                   challengeIDs: StarterList.seattle2026.challengeIDs, listName: seattleListName)
     }
+
+    static let trailGroupID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A2")!
+    static let islandGroupID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A3")!
+
+    /// Extra groups so the demo can show multiple lists, member avatars and group filters.
+    static var trailGroup: BuckGroup {
+        BuckGroup(id: trailGroupID, name: "Trail Squad", emoji: "🥾", memberIDs: [meID, jordanID, priyaID],
+                  challengeIDs: [patagoniaHikeID, "spon-walgreens-firstaid", "spon-albertsons-snacks", "spon-amazon-gear",
+                                 "sea-discovery-lighthouse", "sea-arboretum", "sea-rainier", "sea-three-fingers"],
+                  listName: "PNW Trails 2026")
+    }
+
+    static var islandGroup: BuckGroup {
+        BuckGroup(id: islandGroupID, name: "Island Hoppers", emoji: "⛴️", memberIDs: [meID, dylanID, mayaID],
+                  challengeIDs: ["spon-costco-bbq", "sea-water-taxi", "sea-kayak", "sea-alki", "sea-lake-washington",
+                                 "sea-mercer-island", "sea-bike-bainbridge", "sea-san-juans"],
+                  listName: "Islands & Water")
+    }
+
+    static var seedGroups: [BuckGroup] { [crewGroup, trailGroup, islandGroup] }
 
     // MARK: - Sponsors
 
@@ -179,9 +199,6 @@ enum SeedData {
         Challenge(id: "sea-bike-bainbridge", title: "Bike Bainbridge",
                   description: "Ferry to Bainbridge Island with your bike and ride the island.",
                   category: .island, location: "Bainbridge Island", commitment: .high, section: local, symbol: "bicycle"),
-        Challenge(id: "sea-dylans-park", title: "Dylan's Bellevue park",
-                  description: "The Bellevue park Dylan swears by — go find out why.",
-                  category: .park, location: "Bellevue Downtown Park", commitment: .low, section: local),
         Challenge(id: "sea-lake-washington", title: "Swim in Lake Washington",
                   description: "Take a summer dip at Madison Park or Matthews Beach.",
                   category: .water, location: "Madison Park or Matthews Beach", commitment: .low, section: local),
@@ -219,29 +236,35 @@ enum SeedData {
     private static let challengesByID = Dictionary(uniqueKeysWithValues: allChallenges.map { ($0.id, $0) })
     static func challenge(_ id: String) -> Challenge? { challengesByID[id] }
 
-    /// Which friends "have done" each challenge, for avatars on the detail screen.
+    /// Which friends "have done" each challenge (shown as avatars on tasks and the detail screen).
     static let friendCompletions: [String: [UUID]] = [
-        patagoniaHikeID: [dylanID, mayaID],
+        patagoniaHikeID: [priyaID, dylanID, jordanID],
         arcteryxCampID: [jordanID],
+        "spon-walgreens-firstaid": [priyaID],
+        "spon-albertsons-snacks": [jordanID, priyaID],
+        "spon-costco-bbq": [dylanID, mayaID],
         "sea-golden-gardens": [mayaID, priyaID, dylanID],
         "sea-kerry-park": [mayaID],
-        "sea-alki": [dylanID],
-        "sea-green-lake": [priyaID],
-        "sea-kayak": [jordanID],
-        "sea-discovery-lighthouse": [dylanID, priyaID],
+        "sea-alki": [dylanID, mayaID],
+        "sea-green-lake": [mayaID, priyaID],
+        "sea-kayak": [jordanID, dylanID],
+        "sea-water-taxi": [mayaID],
+        "sea-discovery-lighthouse": [dylanID, priyaID, jordanID],
+        "sea-rainier": [jordanID],
         "sea-fremont-market": [mayaID, jordanID],
     ]
 
-    // MARK: - Demo feed (toggled from Settings)
+    // MARK: - Demo feed (on by default; toggle in Settings)
 
     static let demoPostIDs: Set<UUID> = [
         UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D1")!,
         UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D2")!,
         UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D3")!,
         UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D4")!,
+        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D5")!,
     ]
 
-    static func makeDemoPosts(groupID: UUID) -> [Post] {
+    static func makeDemoPosts() -> [Post] {
         let ids = demoPostIDs.sorted { $0.uuidString < $1.uuidString }
         let now = Date()
         func ago(_ hours: Double) -> Date { now.addingTimeInterval(-hours * 3600) }
@@ -249,28 +272,37 @@ enum SeedData {
             Comment(id: UUID(), userID: user, text: text, date: ago(hours))
         }
         return [
-            Post(id: ids[0], userID: mayaID, groupID: groupID, challengeID: "sea-kerry-park",
+            Post(id: ids[0], userID: mayaID, groupID: crewGroupID, challengeID: "sea-kerry-park",
                  photoFilename: PhotoStore.assetPrefix + "feed-kerry", selfieFilename: nil,
                  locationName: "Kerry Park, Seattle", date: ago(2), taggedUserIDs: [priyaID], verified: false,
                  reactions: ["🔥": [dylanID, priyaID], "🌊": [jordanID]],
-                 comments: [comment(dylanID, "The mountain was OUT 😍", 1.5)],
+                 comments: [comment(dylanID, "The mountain was OUT 😍", 1.5),
+                            comment(priyaID, "golden hour hits different up there", 1.2)],
                  caption: "Rainier said hi"),
-            Post(id: ids[1], userID: dylanID, groupID: groupID, challengeID: "sea-alki",
+            Post(id: ids[1], userID: priyaID, groupID: trailGroupID, challengeID: patagoniaHikeID,
+                 photoFilename: PhotoStore.assetPrefix + "feed-summit", selfieFilename: nil,
+                 locationName: "Rattlesnake Ledge, North Bend", date: ago(4), taggedUserIDs: [jordanID], verified: true,
+                 reactions: ["🔥": [jordanID, mayaID, dylanID], "🙌": [jordanID]],
+                 comments: [comment(jordanID, "my calves are still recovering", 3.5),
+                            comment(mayaID, "wait you got 15% off at Patagonia for this?? signing up", 3)],
+                 caption: "5.6 miles, one very windy summit", sharedRewardHeadline: "15% off one item"),
+            Post(id: ids[2], userID: dylanID, groupID: islandGroupID, challengeID: "sea-alki",
                  photoFilename: PhotoStore.assetPrefix + "feed-alki", selfieFilename: nil,
-                 locationName: "Alki Beach, West Seattle", date: ago(5), taggedUserIDs: [], verified: false,
-                 reactions: ["🙌": [mayaID], "😂": [jordanID]],
-                 comments: [comment(mayaID, "save me some fish and chips next time", 4)],
+                 locationName: "Alki Beach, West Seattle", date: ago(7), taggedUserIDs: [mayaID], verified: false,
+                 reactions: ["🙌": [mayaID], "😂": [jordanID], "🌊": [priyaID]],
+                 comments: [comment(mayaID, "save me some fish and chips next time", 6)],
                  caption: "Fish & chips + sunset = perfect"),
-            Post(id: ids[2], userID: priyaID, groupID: groupID, challengeID: "sea-green-lake",
+            Post(id: ids[3], userID: mayaID, groupID: crewGroupID, challengeID: "sea-green-lake",
                  photoFilename: PhotoStore.assetPrefix + "feed-greenlake", selfieFilename: nil,
-                 locationName: "Green Lake, Seattle", date: ago(26), taggedUserIDs: [mayaID], verified: false,
-                 reactions: ["🔥": [mayaID, dylanID, jordanID]], comments: [],
+                 locationName: "Green Lake, Seattle", date: ago(26), taggedUserIDs: [priyaID], verified: false,
+                 reactions: ["🔥": [priyaID, dylanID, jordanID]],
+                 comments: [comment(priyaID, "paddleboard round two next weekend?", 25)],
                  caption: "2.8 miles done before coffee ☕️"),
-            Post(id: ids[3], userID: jordanID, groupID: groupID, challengeID: "sea-kayak",
+            Post(id: ids[4], userID: jordanID, groupID: islandGroupID, challengeID: "sea-kayak",
                  photoFilename: PhotoStore.assetPrefix + "feed-kayak", selfieFilename: nil,
                  locationName: "Portage Bay, Seattle", date: ago(50), taggedUserIDs: [dylanID], verified: false,
-                 reactions: ["🌊": [priyaID, mayaID]],
-                 comments: [comment(priyaID, "tacos after?? 🌮", 49)],
+                 reactions: ["🌊": [priyaID, mayaID], "😂": [dylanID]],
+                 comments: [comment(priyaID, "tacos after?? 🌮", 49), comment(dylanID, "already ordered", 48.5)],
                  caption: "Tacos earned"),
         ]
     }

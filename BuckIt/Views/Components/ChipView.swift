@@ -4,7 +4,7 @@ struct ChipView: View {
     var text: String
     var symbol: String? = nil
     var isSelected = false
-    var tint: Color = Theme.water
+    var tint: Color = Theme.primary
     var compact = false
 
     var body: some View {
@@ -12,7 +12,7 @@ struct ChipView: View {
             if let symbol { Image(systemName: symbol) }
             Text(text).lineLimit(1)
         }
-        .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
+        .font(compact ? .app(.caption, weight: .semibold) : .app(.subheadline, weight: .semibold))
         .padding(.horizontal, compact ? 8 : 12)
         .padding(.vertical, compact ? 4 : 7)
         .foregroundStyle(isSelected ? Color.white : tint)
@@ -22,7 +22,7 @@ struct ChipView: View {
 
 extension ChipView {
     static func commitment(_ c: Commitment, compact: Bool = true) -> ChipView {
-        ChipView(text: "\(c.label) · \(c.detail)", symbol: c.symbol, tint: Theme.evergreen, compact: compact)
+        ChipView(text: compact ? c.label : "\(c.label) · \(c.detail)", symbol: c.symbol, tint: Theme.teal, compact: compact)
     }
 }
 

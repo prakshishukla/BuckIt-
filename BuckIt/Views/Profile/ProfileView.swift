@@ -28,6 +28,12 @@ struct ProfileView: View {
                 case .groups: GroupsView()
                 }
             }
+            .navigationDestination(for: GroupRoute.self) { route in
+                GroupDetailView(groupID: route.id, mode: .profile)
+            }
+            .navigationDestination(for: Challenge.self) { challenge in
+                ChallengeDetailView(challenge: challenge)
+            }
             .sheet(isPresented: $editingPreferences) {
                 NavigationStack {
                     PreferencesView(mode: .edit) { editingPreferences = false }
@@ -53,14 +59,14 @@ struct ProfileView: View {
         let me = store.me
         return VStack(spacing: 12) {
             AvatarView(user: me, size: 84)
-            Text(me.fullName).font(.rounded(.title, weight: .heavy))
+            Text(me.fullName).font(.display(.title, weight: .heavy))
             Button {
                 editingPreferences = true
             } label: {
                 HStack(spacing: 6) {
                     ChipView(text: me.city, symbol: "mappin", compact: true)
-                    ChipView(text: me.season.label, symbol: me.season.symbol, tint: Color(hex: "#E08A1E"), compact: true)
-                    ChipView(text: me.commitment.label, symbol: me.commitment.symbol, tint: Theme.evergreen, compact: true)
+                    ChipView(text: me.season.label, symbol: me.season.symbol, tint: Theme.plum, compact: true)
+                    ChipView(text: me.commitment.label, symbol: me.commitment.symbol, tint: Theme.teal, compact: true)
                     Image(systemName: "pencil.circle.fill").foregroundStyle(.secondary)
                 }
             }
@@ -76,15 +82,15 @@ struct ProfileView: View {
     private var bucketCard: some View {
         VStack(spacing: 10) {
             HStack {
-                Text("Your bucket").font(.rounded(.headline))
+                Text("Your bucket").font(.display(.headline))
                 Spacer()
                 if store.bucketNumber > 1 {
                     Label("Bucket #\(store.bucketNumber)", systemImage: "trophy.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Theme.navyFixed)
+                        .font(.app(.caption, weight: .bold))
+                        .foregroundStyle(Theme.plumFixed)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Theme.sunshine, in: Capsule())
+                        .background(Theme.cream, in: Capsule())
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -97,11 +103,11 @@ struct ProfileView: View {
             .padding(.vertical, 6)
 
             Text("\(store.bucketDrops)/\(SeedData.dropsPerBucket) drops this season")
-                .font(.rounded(.title3))
+                .font(.display(.title3))
                 .contentTransition(.numericText())
                 .animation(.snappy, value: store.bucketDrops)
             Text("Every completed challenge adds a drop. Fill it up to start Bucket #\(store.bucketNumber + 1).")
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -116,12 +122,12 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 12) {
             NavigationLink(value: Route.wallet) {
                 HStack {
-                    Label("Wallet", systemImage: "wallet.pass.fill").font(.rounded(.title3))
+                    Label("Wallet", systemImage: "wallet.pass.fill").font(.display(.title3))
                     Spacer()
                     Text("\(store.me.wallet.filter { !$0.redeemed }.count) active")
-                        .font(.subheadline)
+                        .font(.app(.subheadline))
                         .foregroundStyle(.secondary)
-                    Image(systemName: "chevron.right").font(.subheadline.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.app(.subheadline, weight: .semibold)).foregroundStyle(.tertiary)
                 }
                 .foregroundStyle(.primary)
             }
@@ -131,7 +137,7 @@ struct ProfileView: View {
                 CouponCardView(coupon: latest)
             } else {
                 Text("Complete a sponsored challenge to unlock real discounts. 🎁")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .card()
@@ -145,15 +151,18 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 12) {
             NavigationLink(value: Route.groups) {
                 HStack {
-                    Label("My Groups", systemImage: "person.3.fill").font(.rounded(.title3))
+                    Label("My Groups", systemImage: "person.3.fill").font(.display(.title3))
                     Spacer()
-                    Image(systemName: "chevron.right").font(.subheadline.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.app(.subheadline, weight: .semibold)).foregroundStyle(.tertiary)
                 }
                 .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
 
-            ForEach(store.myGroups) { GroupRow(group: $0) }
+            ForEach(store.myGroups) { group in
+                NavigationLink(value: GroupRoute(id: group.id)) { GroupRow(group: group) }
+                    .buttonStyle(.plain)
+            }
 
             Button {
                 creatingGroup = true
@@ -168,7 +177,7 @@ struct ProfileView: View {
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Settings").font(.rounded(.title3))
+            Text("Settings").font(.display(.title3))
             VStack(spacing: 0) {
                 Toggle(isOn: Binding(get: { store.state.seedFeedEnabled },
                                      set: { on in withAnimation { store.setSeedFeed(on) } })) {
@@ -180,7 +189,7 @@ struct ProfileView: View {
                     Label("Verification", systemImage: "checkmark.seal")
                     Spacer()
                     Text(store.verifier.displayName)
-                        .font(.caption)
+                        .font(.app(.caption))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
                 }

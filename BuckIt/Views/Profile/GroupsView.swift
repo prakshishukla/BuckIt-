@@ -7,7 +7,10 @@ struct GroupsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(store.myGroups) { GroupRow(group: $0) }
+                ForEach(store.myGroups) { group in
+                    NavigationLink(value: GroupRoute(id: group.id)) { GroupRow(group: group) }
+                        .buttonStyle(.plain)
+                }
                 Button {
                     showCreate = true
                 } label: {
@@ -36,16 +39,19 @@ struct GroupRow: View {
             Text(group.emoji)
                 .font(.system(size: 30))
                 .frame(width: 52, height: 52)
-                .background(Theme.water.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
-                Text(group.name).font(.rounded(.headline))
+                Text(group.name).font(.display(.headline))
                 Text("\(group.listName) · \(done)/\(group.challengeIDs.count) done")
-                    .font(.caption)
+                    .font(.app(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
             AvatarStack(users: members, size: 26, maxCount: 3)
+            Image(systemName: "chevron.right")
+                .font(.app(.subheadline, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
         .card(padding: 12)
     }
@@ -75,10 +81,10 @@ struct CreateGroupView: View {
                                     emoji = option
                                 } label: {
                                     Text(option)
-                                        .font(.title)
+                                        .font(.app(.title))
                                         .frame(width: 48, height: 48)
-                                        .background(emoji == option ? Theme.water.opacity(0.2) : .clear, in: Circle())
-                                        .overlay(Circle().stroke(emoji == option ? Theme.water : .clear, lineWidth: 2))
+                                        .background(emoji == option ? Theme.primary.opacity(0.2) : .clear, in: Circle())
+                                        .overlay(Circle().stroke(emoji == option ? Theme.primary : .clear, lineWidth: 2))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -97,7 +103,7 @@ struct CreateGroupView: View {
                                 Text(friend.fullName).foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selected ? Theme.water : .secondary)
+                                    .foregroundStyle(selected ? Theme.primary : .secondary)
                             }
                         }
                     }
@@ -107,7 +113,7 @@ struct CreateGroupView: View {
                         ForEach(StarterList.allCases) { list in
                             VStack(alignment: .leading) {
                                 Text(list.title)
-                                Text(list.subtitle).font(.caption).foregroundStyle(.secondary)
+                                Text(list.subtitle).font(.app(.caption)).foregroundStyle(.secondary)
                             }
                             .tag(list)
                         }

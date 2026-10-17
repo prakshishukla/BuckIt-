@@ -3,6 +3,9 @@ import Observation
 
 enum AppTab: Hashable { case home, challenges, profile }
 
+/// Navigation value for opening a group's list.
+struct GroupRoute: Hashable { let id: UUID }
+
 /// Everything that persists across launches.
 struct DemoState: Codable {
     var hasSignedIn = false
@@ -13,10 +16,11 @@ struct DemoState: Codable {
     var invitedIDs: Set<UUID> = []
     var groups: [BuckGroup]
     var posts: [Post] = []
-    var seedFeedEnabled = false
+    var seedFeedEnabled = true
 
     static var seed: DemoState {
-        DemoState(user: SeedData.me, friends: SeedData.friends, groups: [SeedData.crewGroup])
+        DemoState(user: SeedData.me, friends: SeedData.friends, groups: SeedData.seedGroups,
+                  posts: SeedData.makeDemoPosts())
     }
 }
 
@@ -27,7 +31,7 @@ final class AppStore {
 
     // Transient UI state (not persisted)
     var selectedTab: AppTab = .home
-    var challengesPath: [Challenge] = []
+    var challengesPath = NavigationPath()
     var activeCapture: Challenge?
     /// The completion count the Profile bucket has animated up to.
     var bucketShownCount: Int
@@ -42,11 +46,28 @@ final class AppStore {
         state = loaded
         bucketShownCount = loaded.user.completedCount
         bucketLevel = Self.level(for: loaded.user.completedCount)
+
+        #if DEBUG
+        // Dev shortcut for screenshots: `-skipOnboarding` and `-tab home|challenges|profile` launch arguments.
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-skipOnboarding") {
+            state.hasSignedIn = true
+            state.hasOnboarded = true
+        }
+        if let i = args.firstIndex(of: "-tab"), i + 1 < args.count {
+            selectedTab = ["challenges": .challenges, "profile": .profile][args[i + 1]] ?? .home
+        }
+        if let i = args.firstIndex(of: "-openGroup"), i + 1 < args.count, i + 1 < args.count,
+           let group = state.groups.first(where: { $0.name.lowercased().hasPrefix(args[i + 1].lowercased()) }) {
+            selectedTab = .challenges
+            challengesPath.append(GroupRoute(id: group.id))
+        }
+        #endif
     }
 
     // MARK: - Persistence
 
-    private static var stateURL: URL { URL.documentsDirectory.appending(path: "buckit-demo-state.json") }
+    private static var stateURL: URL { URL.documentsDirectory.appending(path: "buckit-demo-state-v2.json") }
 
     private static func load() -> DemoState? {
         guard let data = try? Data(contentsOf: stateURL) else { return nil }
@@ -104,6 +125,19 @@ final class AppStore {
         crewGroup?.memberIDs.contains(friendID) ?? false
     }
 
+    func members(of group: BuckGroup) -> [User] {
+        group.memberIDs.compactMap { user($0) }
+    }
+
+    /// Group members who have done a challenge (me included), for the avatars on each task.
+    func completers(of challengeID: String, in group: BuckGroup) -> [User] {
+        members(of: group).filter { member in
+            if member.id == me.id { return myPost(for: challengeID) != nil }
+            return (SeedData.friendCompletions[challengeID] ?? []).contains(member.id)
+                || state.posts.contains { $0.userID == member.id && $0.challengeID == challengeID }
+        }
+    }
+
     /// Friends I can tag: my group-mates, or everyone on BuckIt if I haven't added anyone yet.
     var taggableFriends: [User] {
         let ids = Set(myGroups.flatMap(\.memberIDs)).subtracting([me.id])
@@ -128,13 +162,13 @@ final class AppStore {
         }
     }
 
-    func savePreferences(firstName: String, lastName: String, city: String, season: Season, commitment: Commitment) {
+    func savePreferences(firstName: String, lastName: String, city: String, season: Season, commitment: Commitment? = nil) {
         update { s in
             s.user.firstName = firstName.trimmingCharacters(in: .whitespaces).isEmpty ? "Buck" : firstName
             s.user.lastName = lastName.trimmingCharacters(in: .whitespaces).isEmpty ? "It" : lastName
             s.user.city = city
             s.user.season = season
-            s.user.commitment = commitment
+            if let commitment { s.user.commitment = commitment }
         }
     }
 
@@ -143,8 +177,12 @@ final class AppStore {
     }
 
     func toggleAdded(_ friendID: UUID) {
+        toggleMember(friendID, in: SeedData.crewGroupID)
+    }
+
+    func toggleMember(_ friendID: UUID, in groupID: UUID) {
         update { s in
-            guard let i = s.groups.firstIndex(where: { $0.id == SeedData.crewGroupID }) else { return }
+            guard let i = s.groups.firstIndex(where: { $0.id == groupID }) else { return }
             if let j = s.groups[i].memberIDs.firstIndex(of: friendID) {
                 s.groups[i].memberIDs.remove(at: j)
             } else {
@@ -212,7 +250,7 @@ final class AppStore {
     func finishCapture() {
         selectedTab = .home
         activeCapture = nil
-        challengesPath = []
+        challengesPath = NavigationPath()
     }
 
     // MARK: - Feed
@@ -301,11 +339,10 @@ final class AppStore {
     // MARK: - Settings
 
     func setSeedFeed(_ on: Bool) {
-        let groupID = crewGroup?.id ?? SeedData.crewGroupID
         update { s in
             s.seedFeedEnabled = on
             s.posts.removeAll { SeedData.demoPostIDs.contains($0.id) }
-            if on { s.posts.append(contentsOf: SeedData.makeDemoPosts(groupID: groupID)) }
+            if on { s.posts.append(contentsOf: SeedData.makeDemoPosts()) }
         }
     }
 
@@ -315,7 +352,7 @@ final class AppStore {
         state = .seed
         persist()
         selectedTab = .home
-        challengesPath = []
+        challengesPath = NavigationPath()
         activeCapture = nil
         bucketShownCount = 0
         bucketLevel = 0

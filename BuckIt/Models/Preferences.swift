@@ -17,9 +17,9 @@ enum Commitment: String, Codable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .low: "clock"
-        case .medium: "sun.max"
-        case .high: "mountain.2"
+        case .low: "arrow.down"
+        case .medium: "arrow.right"
+        case .high: "arrow.up"
         }
     }
 }

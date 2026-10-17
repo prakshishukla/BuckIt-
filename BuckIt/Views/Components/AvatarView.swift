@@ -12,7 +12,7 @@ struct AvatarView: View {
         self.size = size
     }
 
-    private static let palette = ["#2F80ED", "#2E7D32", "#F2994A", "#9B51E0", "#EB5757", "#00A3A3", "#D49A00", "#3D5AFE"]
+    private static let palette = ["#05668D", "#028090", "#513B56", "#7C6BB0", "#3F8F7B", "#8A5A83", "#034A66", "#5E7FA8"]
 
     private var color: Color {
         let sum = name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
@@ -25,7 +25,7 @@ struct AvatarView: View {
             .frame(width: size, height: size)
             .overlay {
                 Text(initials)
-                    .font(.system(size: size * 0.38, weight: .bold, design: .rounded))
+                    .font(.app(size: size * 0.38, weight: .bold))
                     .foregroundStyle(.white)
             }
             .overlay(Circle().stroke(Theme.card, lineWidth: size > 30 ? 2 : 1.5))
@@ -44,7 +44,7 @@ struct AvatarStack: View {
             ForEach(users.prefix(maxCount)) { AvatarView(user: $0, size: size) }
             if users.count > maxCount {
                 Circle().fill(Color.secondary.opacity(0.2)).frame(width: size, height: size)
-                    .overlay(Text("+\(users.count - maxCount)").font(.caption2.bold()))
+                    .overlay(Text("+\(users.count - maxCount)").font(.app(.caption2, weight: .bold)))
             }
         }
     }

@@ -17,11 +17,11 @@ struct ChallengeDetailView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(challenge.title)
-                        .font(.rounded(.largeTitle, weight: .heavy))
+                        .font(.display(.largeTitle, weight: .heavy))
                     HStack(spacing: 8) {
                         if let location = challenge.location {
                             Label(location, systemImage: "mappin.and.ellipse")
-                                .font(.subheadline)
+                                .font(.app(.subheadline))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
@@ -33,17 +33,17 @@ struct ChallengeDetailView: View {
                 }
 
                 Text(challenge.description)
-                    .font(.body)
+                    .font(.app(.body))
 
                 if challenge.isSponsored {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Submission criteria").font(.rounded(.headline))
+                        Text("Submission criteria").font(.display(.headline))
                         ForEach(challenge.criteria, id: \.self) { criterion in
                             Label {
-                                Text(criterion).font(.subheadline)
+                                Text(criterion).font(.app(.subheadline))
                             } icon: {
                                 Image(systemName: myPost != nil ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(myPost != nil ? Theme.evergreen : .secondary)
+                                    .foregroundStyle(myPost != nil ? Theme.teal : .secondary)
                             }
                         }
                     }
@@ -56,16 +56,16 @@ struct ChallengeDetailView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Friends who've done it").font(.rounded(.headline))
+                    Text("Friends who've done it").font(.display(.headline))
                     if friends.isEmpty {
                         Text("Nobody yet. Be the first in your crew! 🏁")
-                            .font(.subheadline)
+                            .font(.app(.subheadline))
                             .foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: 10) {
                             AvatarStack(users: friends, size: 34)
                             Text(friends.map(\.firstName).formatted(.list(type: .and)) + (friends.count == 1 ? " has" : " have") + " done this")
-                                .font(.subheadline)
+                                .font(.app(.subheadline))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -74,8 +74,8 @@ struct ChallengeDetailView: View {
                 if let myPost {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("You did it \(myPost.date.formatted(.relative(presentation: .named)))", systemImage: "checkmark.seal.fill")
-                            .font(.rounded(.headline))
-                            .foregroundStyle(Theme.evergreen)
+                            .font(.display(.headline))
+                            .foregroundStyle(Theme.teal)
                         DualPhotoView(main: PhotoStore.image(myPost.photoFilename), selfie: PhotoStore.image(myPost.selfieFilename))
                             .frame(maxWidth: 220)
                     }
@@ -111,14 +111,14 @@ private struct RewardPreviewCard: View {
         let unlocked = coupon != nil
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label("Reward", systemImage: "gift.fill").font(.rounded(.headline))
+                Label("Reward", systemImage: "gift.fill").font(.display(.headline))
                 Spacer()
-                Text("DEMO").font(.caption2.weight(.heavy)).padding(.horizontal, 6).padding(.vertical, 2)
+                Text("DEMO").font(.app(.caption2, weight: .heavy)).padding(.horizontal, 6).padding(.vertical, 2)
                     .background(.white.opacity(0.25), in: Capsule())
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(reward.headline).font(.rounded(.title2, weight: .heavy))
-                Text(reward.detail).font(.subheadline).opacity(0.9)
+                Text(reward.headline).font(.display(.title2, weight: .heavy))
+                Text(reward.detail).font(.app(.subheadline)).opacity(0.9)
                 Text(unlocked ? "Code \(coupon?.code ?? "") is in your Wallet" : "\(reward.codePrefix)-XXXXXX · expires \(reward.expiresInDays) days after unlock")
                     .font(.caption.monospaced())
                     .opacity(0.85)
@@ -127,7 +127,7 @@ private struct RewardPreviewCard: View {
             .overlay {
                 if !unlocked {
                     Label("Complete to unlock", systemImage: "lock.fill")
-                        .font(.subheadline.weight(.bold))
+                        .font(.app(.subheadline, weight: .bold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())

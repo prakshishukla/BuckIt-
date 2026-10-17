@@ -60,7 +60,7 @@ struct CaptureView: View {
         HStack {
             Button(action: onCancel) {
                 Image(systemName: "xmark")
-                    .font(.headline)
+                    .font(.app(.headline))
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(.white.opacity(0.15), in: Circle())
@@ -68,8 +68,8 @@ struct CaptureView: View {
             .accessibilityLabel("Close")
             Spacer()
             VStack(spacing: 2) {
-                Text("BuckIt.").font(.rounded(.title3, weight: .heavy)).foregroundStyle(.white)
-                Text(challenge.title).font(.caption).foregroundStyle(.white.opacity(0.7))
+                Text("BuckIt.").font(.display(.title3, weight: .heavy)).foregroundStyle(.white)
+                Text(challenge.title).font(.app(.caption)).foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
             Color.clear.frame(width: 40, height: 40)
@@ -105,9 +105,9 @@ struct CaptureView: View {
             .overlay {
                 if phase == .selfie, let countdown {
                     VStack(spacing: 6) {
-                        Text("Selfie time! 🤳").font(.rounded(.title2, weight: .heavy))
+                        Text("Selfie time! 🤳").font(.display(.title2, weight: .heavy))
                         Text("\(countdown)")
-                            .font(.system(size: 80, weight: .heavy, design: .rounded))
+                            .font(.display(size: 80, weight: .heavy))
                             .contentTransition(.numericText(countsDown: true))
                     }
                     .foregroundStyle(.white)
@@ -122,10 +122,10 @@ struct CaptureView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(.white.opacity(0.8))
             Text("No camera available")
-                .font(.rounded(.title3))
+                .font(.display(.title3))
                 .foregroundStyle(.white)
             Text("The Simulator can't use a camera. Use the demo photo or pick one from your library.")
-                .font(.subheadline)
+                .font(.app(.subheadline))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.7))
                 .padding(.horizontal, 24)
@@ -138,7 +138,7 @@ struct CaptureView: View {
             HStack {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Image(systemName: "photo.on.rectangle")
-                        .font(.title2)
+                        .font(.app(.title2))
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
                         .background(.white.opacity(0.15), in: Circle())
@@ -161,7 +161,7 @@ struct CaptureView: View {
                         countdown = nil
                         onCaptured(mainShot, nil)
                     }
-                    .font(.headline)
+                    .font(.app(.headline))
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                 } else {
@@ -170,7 +170,7 @@ struct CaptureView: View {
             }
             .padding(.horizontal, 12)
             Text(phase == .back ? "Snap your proof" : "Now flip it around")
-                .font(.footnote)
+                .font(.app(.footnote))
                 .foregroundStyle(.white.opacity(0.7))
         } else if checkedCamera {
             VStack(spacing: 12) {
@@ -183,7 +183,7 @@ struct CaptureView: View {
 
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Label("Choose from library", systemImage: "photo.on.rectangle")
-                        .font(.rounded(.headline))
+                        .font(.display(.headline))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)

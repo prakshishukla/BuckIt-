@@ -20,56 +20,59 @@ struct PostCardView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 4) {
                         Text(author?.id == store.me.id ? "You" : (author?.firstName ?? "Someone"))
-                            .font(.headline)
+                            .font(.app(.headline))
                         if post.verified {
                             Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(Theme.water)
+                                .foregroundStyle(Theme.primary)
                                 .accessibilityLabel("Verified")
                         }
                     }
                     Text(post.date.formatted(.relative(presentation: .named)))
-                        .font(.caption)
+                        .font(.app(.caption))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let sponsor = challenge?.sponsor {
-                    SponsorBadge(sponsor: sponsor, compact: true)
-                }
             }
 
             Text("completed **\(challenge?.title ?? "a challenge")**")
-                .font(.subheadline)
+                .font(.app(.subheadline))
 
             DualPhotoView(main: PhotoStore.image(post.photoFilename), selfie: PhotoStore.image(post.selfieFilename))
                 .overlay(alignment: .bottomLeading) {
                     Label(post.locationName, systemImage: "mappin.and.ellipse")
-                        .font(.caption.weight(.semibold))
+                        .font(.app(.caption, weight: .semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(10)
                 }
+                .overlay(alignment: .topTrailing) {
+                    if let sponsor = challenge?.sponsor {
+                        SponsoredTag(sponsor: sponsor)
+                            .padding(10)
+                    }
+                }
 
             if let caption = post.caption {
-                Text(caption).font(.body)
+                Text(caption).font(.app(.body))
             }
 
             if !tagged.isEmpty {
                 HStack(spacing: 6) {
                     AvatarStack(users: tagged, size: 22)
                     Text("with " + tagged.map(\.firstName).formatted(.list(type: .and)))
-                        .font(.caption)
+                        .font(.app(.caption))
                         .foregroundStyle(.secondary)
                 }
             }
 
             if let reward = post.sharedRewardHeadline, let sponsor = challenge?.sponsor {
                 Label("Unlocked \(reward) at \(sponsor.name)", systemImage: "gift.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.evergreen)
+                    .font(.app(.caption, weight: .semibold))
+                    .foregroundStyle(Theme.teal)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Theme.evergreen.opacity(0.12), in: Capsule())
+                    .background(Theme.teal.opacity(0.12), in: Capsule())
             }
 
             // Reactions + comments
@@ -85,14 +88,14 @@ struct PostCardView: View {
                             Text(emoji)
                             if !users.isEmpty {
                                 Text("\(users.count)")
-                                    .font(.caption.weight(.bold))
+                                    .font(.app(.caption, weight: .bold))
                                     .contentTransition(.numericText())
                             }
                         }
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
-                        .background(mine ? Theme.water.opacity(0.18) : Color.secondary.opacity(0.1), in: Capsule())
-                        .overlay(Capsule().stroke(mine ? Theme.water : .clear, lineWidth: 1.5))
+                        .background(mine ? Theme.primary.opacity(0.18) : Color.secondary.opacity(0.1), in: Capsule())
+                        .overlay(Capsule().stroke(mine ? Theme.primary : .clear, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(emoji) \(users.count)")
@@ -102,7 +105,7 @@ struct PostCardView: View {
                     showComments = true
                 } label: {
                     Label("\(post.comments.count)", systemImage: "bubble.right")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.app(.subheadline, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -140,7 +143,7 @@ struct DualPhotoView: View {
                 if let big {
                     Image(uiImage: big).resizable().scaledToFill()
                 } else {
-                    Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary)
+                    Image(systemName: "photo").font(.app(.largeTitle)).foregroundStyle(.secondary)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -174,5 +177,27 @@ struct DualPhotoView: View {
                     }
                 }
             }
+    }
+}
+
+/// "Sponsored: Patagonia" label shown on the photo itself.
+struct SponsoredTag: View {
+    let sponsor: Sponsor
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: sponsor.symbol)
+            Text("Sponsored:").font(.app(.caption, weight: .medium))
+            Text(sponsor.name).font(.app(.caption, weight: .bold))
+        }
+        .font(.app(.caption, weight: .bold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(hex: sponsor.colorHex).opacity(0.92), in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+        .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sponsored by \(sponsor.name)")
     }
 }

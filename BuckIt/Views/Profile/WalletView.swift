@@ -19,7 +19,7 @@ struct WalletView: View {
                 }
                 ForEach(active) { CouponCardView(coupon: $0) }
                 if !used.isEmpty {
-                    Text("Used").font(.rounded(.headline)).foregroundStyle(.secondary).padding(.top, 8)
+                    Text("Used").font(.display(.headline)).foregroundStyle(.secondary).padding(.top, 8)
                     ForEach(used) { CouponCardView(coupon: $0) }
                 }
             }

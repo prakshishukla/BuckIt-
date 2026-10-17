@@ -21,15 +21,15 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 | # | Do this | You'll see |
 |---|---|---|
 | 1 | Launch → **Continue as Buck It** | Animated bucket logo, "Kick the bucket list. Together." |
-| 2 | Preferences: City **Seattle**, Season **Summer**, Commitment **Medium** → **Next** | These values are pre-filled. Other cities show as "coming soon". |
+| 2 | Preferences: City **Seattle**, Season **Summer** → **Next** | These values are pre-filled. Other cities show as "coming soon". Commitment isn't asked at setup; it can be changed later from Profile. |
 | 3 | **Allow access** → **Add** Dylan/Maya → **Invite** Sam → **Done** | Fake contact sync. On the Simulator, Invite copies the link and shows a toast. On a phone, it opens Messages. |
-| 4 | Home | Empty-bucket state: "Nothing here yet — go complete a challenge!" |
-| 5 | **Challenges → Sponsored → Patagonia "Hike 5+ miles"** | On iOS 18+, the card zooms into the detail screen. |
+| 4 | Home | Friends' posts with photos, reactions and comments, plus group filter chips. Priya's post carries a **Sponsored: Patagonia** tag on the photo. |
+| 5 | **Challenges → Sponsored → Patagonia "Hike 5+ miles"** | Two dropdowns filter by time commitment and activity type. On iOS 18+, the card zooms into the detail screen. |
 | 6 | Read the criteria → **Submit** | The reward card stays locked and blurred. |
 | 7 | **Use demo photo** (Simulator) or snap a photo, then a selfie (phone). Tag a friend → **Post** | The location and time chips fill in automatically. |
 | 8 | Verification | The criteria tick off one by one, then a green check draws in with confetti and a haptic. |
 | 9 | Coupon reveal | The card flips to "15% off one item" at Patagonia, then "Saved to Wallet". Tap **Done**. |
-| 10 | Home → **Profile** | The post is at the top of the feed. On Profile, the water bucket rises one level with a splash: "1/10 drops this season". |
+| 10 | Home → **Challenges** → **Profile** | The post is at the top of the feed, and the Patagonia card has dropped off the Sponsored list. On Profile, the water bucket rises one level with a splash: "1/10 drops this season". |
 | 11 | **Profile → Wallet** | The coupon shows its code (e.g. `PATA-7XK2QM`), a QR code, its expiry, and a "Mark as used" button. |
 
 ## Demo-day setup
@@ -40,7 +40,10 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 4. On the Simulator, use **Use demo photo** at the camera step. On a real iPhone connected by cable and signed with a free Apple ID team, the live back-then-front BeReal-style camera works.
 5. For a bigger screen, open QuickTime → **New Movie Recording** and select the iPhone to mirror a physical device. You can also just present the Simulator window.
 
-Optional: turn on **Profile → Settings → Seed demo feed** for four sample posts from friends, if you want a fuller feed.
+**More to show:**
+- **Challenges → My Groups** lists only your groups: Seattle Summer Crew 🌊, Trail Squad 🥾 and Island Hoppers ⛴️. Tap one to see its list in sections (Sponsored picks, Local, Parks & Adventures). Tasks you've finished disappear, and each task shows avatars of the members who have done it.
+- **Profile → My Groups → a group** shows the entire list (finished tasks included), all current members, and a **+** button at the top right to add people.
+- To start from an empty feed instead, turn off **Profile → Settings → Seed demo feed**.
 
 ## Real Gemini verification (Best Use of Gemini)
 
@@ -92,6 +95,10 @@ BuckIt/
     Assets.xcassets         app icon, named colors (light + dark), demo + feed photos
     Seattle.gpx             simulated location (Discovery Park)
 ```
+
+Design: Playfair Display for titles and DM Sans for everything else (both SIL Open Font License, see `Licenses/`), with a palette of #05668D, #028090 and #513B56 (primary) plus #B0A3D4 and #F0F3BD (secondary). Colors live in `Assets.xcassets` as `Brand*` color sets with dark-mode variants. Fonts are set up in `Views/Components/Theme.swift`.
+
+Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile`, and `-openGroup <name prefix>`.
 
 Notes:
 - The group model is named `BuckGroup` so it doesn't shadow SwiftUI's `Group`. The category enum is `ChallengeCategory` so it doesn't clash with the Objective-C runtime's `Category`.

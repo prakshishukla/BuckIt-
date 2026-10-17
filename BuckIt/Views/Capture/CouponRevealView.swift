@@ -18,10 +18,10 @@ struct CouponRevealView: View {
         VStack(spacing: 22) {
             VStack(spacing: 6) {
                 Text(flipped ? "Reward unlocked!" : "You earned a reward")
-                    .font(.rounded(.title, weight: .heavy))
+                    .font(.display(.title, weight: .heavy))
                     .contentTransition(.opacity)
                 Text(flipped ? "Show this code at checkout." : "Tap the card to reveal it")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 40)
@@ -37,8 +37,8 @@ struct CouponRevealView: View {
 
             if flipped {
                 Label("Saved to Wallet", systemImage: "checkmark.circle.fill")
-                    .font(.rounded(.headline))
-                    .foregroundStyle(Theme.evergreen)
+                    .font(.display(.headline))
+                    .foregroundStyle(Theme.teal)
                     .transition(.scale.combined(with: .opacity))
             }
 
@@ -50,7 +50,7 @@ struct CouponRevealView: View {
                 } label: {
                     Label("Saved to Wallet", systemImage: "wallet.pass.fill")
                 }
-                .buttonStyle(SecondaryButtonStyle(tint: Theme.evergreen))
+                .buttonStyle(SecondaryButtonStyle(tint: Theme.teal))
                 .disabled(true)
 
                 Button {
@@ -119,7 +119,7 @@ private struct CouponBack: View {
         let brand = Color(hex: sponsor.colorHex)
         ZStack {
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .fill(LinearGradient(colors: [brand, brand.opacity(0.7), Theme.navyFixed], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(colors: [brand, brand.opacity(0.7), Theme.plumFixed], startPoint: .topLeading, endPoint: .bottomTrailing))
             VStack(spacing: 14) {
                 Image(systemName: "gift.fill")
                     .font(.system(size: 64))
@@ -152,7 +152,7 @@ struct PostedView: View {
                 SplashView(trigger: splash).padding(.top, 30)
             }
             Text("Posted!")
-                .font(.rounded(.largeTitle, weight: .heavy))
+                .font(.display(.largeTitle, weight: .heavy))
             Text("**\(challenge.title)** is in the feed.\n+1 drop in your bucket 💧")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

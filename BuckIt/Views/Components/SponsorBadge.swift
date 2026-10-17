@@ -19,7 +19,7 @@ struct SponsorBadge: View {
             }
             Text(sponsor.name).lineLimit(1)
         }
-        .font(compact ? .caption2.weight(.bold) : .caption.weight(.bold))
+        .font(compact ? .app(.caption2, weight: .bold) : .app(.caption, weight: .bold))
         .padding(.horizontal, compact ? 7 : 10)
         .padding(.vertical, compact ? 3 : 5)
         .foregroundStyle(style == .filled ? Color.white : brand)
@@ -35,12 +35,12 @@ struct SponsorArt: View {
     var body: some View {
         let tint = challenge.tint
         ZStack {
-            LinearGradient(colors: [tint.opacity(0.85), tint, Theme.navyFixed.opacity(0.9)],
+            LinearGradient(colors: [tint.opacity(0.85), tint, Theme.plumFixed.opacity(0.9)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             Circle()
-                .fill(Theme.sunshine.gradient)
+                .fill(Theme.cream.gradient)
                 .frame(width: 74, height: 74)
-                .shadow(color: Theme.sunshine.opacity(0.6), radius: 18)
+                .shadow(color: Theme.cream.opacity(0.6), radius: 18)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(24)
             HillsShape(crest: 0.62, phase: 0.6).fill(.white.opacity(0.14))

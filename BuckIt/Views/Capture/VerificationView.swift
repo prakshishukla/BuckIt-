@@ -36,10 +36,10 @@ struct VerificationView: View {
 
                 VStack(spacing: 6) {
                     Text(title)
-                        .font(.rounded(.title, weight: .heavy))
+                        .font(.display(.title, weight: .heavy))
                         .contentTransition(.opacity)
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(.app(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -55,7 +55,7 @@ struct VerificationView: View {
                             Text(result.confidence, format: .percent.precision(.fractionLength(0)))
                                 .monospacedDigit()
                         }
-                        .font(.caption.weight(.semibold))
+                        .font(.app(.caption, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .transition(.opacity)
                     }
@@ -66,7 +66,7 @@ struct VerificationView: View {
                 if phase == .failed {
                     VStack(spacing: 10) {
                         if let errorMessage {
-                            Text(errorMessage).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Text(errorMessage).font(.app(.footnote)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         }
                         Button("Retake photo", action: onRetake).buttonStyle(PrimaryButtonStyle())
                         Button("Post without reward", action: onPostWithoutReward).buttonStyle(SecondaryButtonStyle())
@@ -111,7 +111,7 @@ struct VerificationView: View {
                 if phase == .checking {
                     // scanning beam
                     GeometryReader { geo in
-                        LinearGradient(colors: [.clear, Theme.water.opacity(0.65), .clear], startPoint: .top, endPoint: .bottom)
+                        LinearGradient(colors: [.clear, Theme.primary.opacity(0.65), .clear], startPoint: .top, endPoint: .bottom)
                             .frame(height: 60)
                             .offset(y: scan ? geo.size.height - 30 : -30)
                     }
@@ -171,23 +171,23 @@ private struct CriterionRow: View {
             ZStack {
                 if revealed {
                     Image(systemName: row.met ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(row.met ? Theme.evergreen : .red)
+                        .foregroundStyle(row.met ? Theme.teal : .red)
                         .transition(.scale.combined(with: .opacity))
                 } else {
                     ProgressView().controlSize(.small)
                 }
             }
-            .font(.title3)
+            .font(.app(.title3))
             .frame(width: 26, height: 26)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.criterion)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.app(.subheadline, weight: .semibold))
                     .foregroundStyle(revealed ? .primary : .secondary)
                     .shimmer(!revealed)
                 if revealed, !row.why.isEmpty {
                     Text(row.why)
-                        .font(.caption)
+                        .font(.app(.caption))
                         .foregroundStyle(.secondary)
                         .transition(.opacity)
                 }

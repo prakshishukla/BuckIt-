@@ -1,15 +1,100 @@
 import SwiftUI
 
 enum Theme {
-    static let water = Color("WaterBlue")
-    static let navy = Color("LakeNavy")
-    static let evergreen = Color("Evergreen")
-    static let sunshine = Color("Sunshine")
+    // Primary
+    static let primary = Color("BrandPrimary")        // #05668D
+    static let teal = Color("BrandTeal")              // #028090
+    static let plum = Color("BrandPlum")              // #513B56 (lightens in dark mode, used for ink/outlines)
+    // Secondary
+    static let lavender = Color("BrandLavender")      // #B0A3D4
+    static let cream = Color("BrandCream")            // #F0F3BD
+
     static let background = Color("AppBackground")
     static let card = Color("CardBackground")
-    /// Navy that stays dark in dark mode (for text on white buttons, hero gradients).
-    static let navyFixed = Color(hex: "#0B2545")
+    /// Plum that stays dark in dark mode (text on light buttons, hero gradients).
+    static let plumFixed = Color(hex: "#513B56")
+    /// Deep shade of the primary for gradients.
+    static let deepFixed = Color(hex: "#034A66")
     static let cornerRadius: CGFloat = 20
+}
+
+/// Playfair Display for titles, DM Sans for everything else. Both scale with Dynamic Type.
+enum AppFont {
+    static func baseSize(_ style: Font.TextStyle) -> CGFloat {
+        switch style {
+        case .largeTitle: 34
+        case .title: 28
+        case .title2: 22
+        case .title3: 20
+        case .headline, .body: 17
+        case .callout: 16
+        case .subheadline: 15
+        case .footnote: 13
+        case .caption: 12
+        case .caption2: 11
+        @unknown default: 17
+        }
+    }
+
+    static func displayName(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .heavy, .black: "PlayfairDisplay-ExtraBold"
+        case .bold: "PlayfairDisplay-Bold"
+        default: "PlayfairDisplay-SemiBold"
+        }
+    }
+
+    static func textName(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .bold, .heavy, .black: "DMSans-Bold"
+        case .semibold: "DMSans-SemiBold"
+        case .medium: "DMSans-Medium"
+        default: "DMSans-Regular"
+        }
+    }
+}
+
+extension Font {
+    /// Playfair Display, for titles and headings.
+    static func display(_ style: Font.TextStyle, weight: Font.Weight = .bold) -> Font {
+        .custom(AppFont.displayName(weight), size: AppFont.baseSize(style), relativeTo: style)
+    }
+
+    static func display(size: CGFloat, weight: Font.Weight = .bold) -> Font {
+        .custom(AppFont.displayName(weight), size: size)
+    }
+
+    /// DM Sans, for body copy and UI text.
+    static func app(_ style: Font.TextStyle, weight: Font.Weight? = nil) -> Font {
+        let resolved = weight ?? (style == .headline ? .semibold : .regular)
+        return .custom(AppFont.textName(resolved), size: AppFont.baseSize(style), relativeTo: style)
+    }
+
+    static func app(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .custom(AppFont.textName(weight), size: size)
+    }
+}
+
+/// UIKit-drawn chrome (navigation titles, segmented controls, tab bar) picks up the same fonts.
+enum AppearanceSetup {
+    static func apply() {
+        let plum = UIColor(named: "BrandPlum") ?? .label
+        if let large = UIFont(name: "PlayfairDisplay-Bold", size: 34),
+           let inline = UIFont(name: "PlayfairDisplay-Bold", size: 18) {
+            let nav = UINavigationBar.appearance()
+            nav.largeTitleTextAttributes = [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: large), .foregroundColor: plum]
+            nav.titleTextAttributes = [.font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: inline), .foregroundColor: plum]
+        }
+        if let seg = UIFont(name: "DMSans-SemiBold", size: 14) {
+            UISegmentedControl.appearance().setTitleTextAttributes([.font: seg], for: .normal)
+        }
+        if let tab = UIFont(name: "DMSans-Medium", size: 11) {
+            UITabBarItem.appearance().setTitleTextAttributes([.font: tab], for: .normal)
+        }
+        if let bar = UIFont(name: "DMSans-Medium", size: 17) {
+            UIBarButtonItem.appearance().setTitleTextAttributes([.font: bar], for: .normal)
+        }
+    }
 }
 
 extension Color {
@@ -23,24 +108,17 @@ extension Color {
     }
 }
 
-extension Font {
-    /// SF Pro Rounded for headings.
-    static func rounded(_ style: Font.TextStyle, weight: Font.Weight = .bold) -> Font {
-        .system(style, design: .rounded, weight: weight)
-    }
-}
-
 extension ChallengeCategory {
     var tint: Color {
         switch self {
-        case .hike: Theme.evergreen
-        case .water: Theme.water
-        case .park: Color(hex: "#3E9E5C")
-        case .island: Color(hex: "#1E88A8")
-        case .market: Color(hex: "#E08A1E")
-        case .ride: Color(hex: "#5C6BC0")
-        case .shopping: Color(hex: "#D84E7A")
-        case .finance: Color(hex: "#1A1F71")
+        case .hike: Theme.teal
+        case .water: Theme.primary
+        case .park: Color(hex: "#3F8F7B")
+        case .island: Theme.deepFixed
+        case .market: Theme.plumFixed
+        case .ride: Color(hex: "#7C6BB0")
+        case .shopping: Color(hex: "#8A5A83")
+        case .finance: Theme.plumFixed
         }
     }
 }
@@ -84,13 +162,13 @@ extension View {
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
-    var background: Color = Theme.water
+    var background: Color = Theme.primary
     var foreground: Color = .white
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.rounded(.headline))
+            .font(.app(.headline, weight: .semibold))
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
@@ -104,11 +182,11 @@ struct PrimaryButtonStyle: ButtonStyle {
 }
 
 struct SecondaryButtonStyle: ButtonStyle {
-    var tint: Color = Theme.water
+    var tint: Color = Theme.primary
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.rounded(.headline))
+            .font(.app(.headline, weight: .semibold))
             .padding(.vertical, 14)
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
@@ -130,12 +208,12 @@ struct StepHeader: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 ForEach(1...total, id: \.self) { i in
-                    Capsule().fill(i <= step ? Theme.water : Color.secondary.opacity(0.25))
+                    Capsule().fill(i <= step ? Theme.primary : Color.secondary.opacity(0.25))
                         .frame(width: i == step ? 28 : 14, height: 6)
                 }
             }
-            Text(title).font(.rounded(.largeTitle, weight: .heavy))
-            Text(subtitle).font(.body).foregroundStyle(.secondary)
+            Text(title).font(.display(.largeTitle, weight: .heavy))
+            Text(subtitle).font(.app(.body)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -8,13 +8,13 @@ struct SignInView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: "#6BB4F7"), Color(hex: "#2F80ED"), Theme.navyFixed],
+            LinearGradient(colors: [Color(hex: "#028090"), Color(hex: "#05668D"), Theme.plumFixed],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
             VStack(spacing: 28) {
                 Spacer()
-                WaterBucketView(level: appeared ? 0.62 : 0.05, size: 150, outline: Theme.navyFixed)
+                WaterBucketView(level: appeared ? 0.62 : 0.05, size: 150, outline: Theme.plumFixed)
                     .environment(\.colorScheme, .light)
                     .animation(.spring(duration: 1.6, bounce: 0.3).delay(0.25), value: appeared)
                     .scaleEffect(appeared ? 1 : 0.85)
@@ -22,9 +22,9 @@ struct SignInView: View {
 
                 VStack(spacing: 10) {
                     Text("BuckIt")
-                        .font(.system(size: 58, weight: .heavy, design: .rounded))
+                        .font(.display(size: 60, weight: .heavy))
                     Text("Kick the bucket list. Together.")
-                        .font(.rounded(.title3, weight: .semibold))
+                        .font(.app(.title3, weight: .medium))
                         .opacity(0.92)
                 }
                 .foregroundStyle(.white)
@@ -38,16 +38,16 @@ struct SignInView: View {
                     } label: {
                         Label("Continue as Buck It", systemImage: "person.crop.circle.fill")
                     }
-                    .buttonStyle(PrimaryButtonStyle(background: .white, foreground: Theme.navyFixed))
+                    .buttonStyle(PrimaryButtonStyle(background: .white, foreground: Theme.plumFixed))
 
                     Button("Join with invite code") { showCodeAlert = true }
-                        .font(.rounded(.headline))
+                        .font(.app(.headline, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(.vertical, 8)
                 }
 
                 Text("Demo build · no real account needed")
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(.white.opacity(0.7))
             }
             .padding(24)

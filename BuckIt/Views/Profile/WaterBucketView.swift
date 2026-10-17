@@ -5,7 +5,7 @@ import SwiftUI
 struct WaterBucketView: View {
     var level: Double
     var size: CGFloat = 180
-    var outline: Color = Theme.navy
+    var outline: Color = Theme.plum
 
     var body: some View {
         let lineWidth = max(2.5, size * 0.035)
@@ -24,9 +24,9 @@ struct WaterBucketView: View {
                     let t = timeline.date.timeIntervalSinceReferenceDate
                     ZStack {
                         WaveShape(level: level, phase: t * 1.7 + 1.4, amplitude: amplitude * 0.8)
-                            .fill(Theme.water.opacity(0.35))
+                            .fill(Theme.primary.opacity(0.35))
                         WaveShape(level: level, phase: t * 2.3, amplitude: amplitude)
-                            .fill(LinearGradient(colors: [Color(hex: "#56A8F5"), Theme.water, Color(hex: "#1F5FBF")],
+                            .fill(LinearGradient(colors: [Color(hex: "#2BA3B5"), Theme.primary, Theme.deepFixed],
                                                  startPoint: .top, endPoint: .bottom))
                     }
                 }

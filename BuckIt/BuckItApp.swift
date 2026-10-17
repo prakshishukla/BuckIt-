@@ -4,11 +4,16 @@ import SwiftUI
 struct BuckItApp: App {
     @State private var store = AppStore()
 
+    init() {
+        AppearanceSetup.apply()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(store)
-                .tint(Theme.water)
+                .tint(Theme.primary)
+                .font(.app(.body))
         }
     }
 }

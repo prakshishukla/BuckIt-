@@ -35,7 +35,7 @@ struct PreferencesView: View {
             VStack(alignment: .leading, spacing: 24) {
                 if mode == .onboarding {
                     StepHeader(step: 1, total: 2, title: "Let's set you up",
-                               subtitle: "We'll tailor your bucket list to where you are and how much time you've got.")
+                               subtitle: "We'll tailor your bucket list to where you are and when you're exploring.")
                 }
 
                 section("Your name") {
@@ -58,11 +58,11 @@ struct PreferencesView: View {
                         }
                     } label: {
                         HStack {
-                            Image(systemName: "mappin.and.ellipse").foregroundStyle(Theme.water)
-                            Text(city).font(.headline).foregroundStyle(.primary)
+                            Image(systemName: "mappin.and.ellipse").foregroundStyle(Theme.primary)
+                            Text(city).font(.app(.headline)).foregroundStyle(.primary)
                             Spacer()
-                            Text("More cities soon").font(.caption).foregroundStyle(.secondary)
-                            Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
+                            Text("More cities soon").font(.app(.caption)).foregroundStyle(.secondary)
+                            Image(systemName: "chevron.up.chevron.down").font(.app(.caption)).foregroundStyle(.secondary)
                         }
                         .padding(14)
                         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -76,14 +76,16 @@ struct PreferencesView: View {
                     .pickerStyle(.segmented)
                 }
 
-                section("Commitment") {
-                    HStack(spacing: 10) {
-                        ForEach(Commitment.allCases) { option in
-                            CommitmentCard(commitment: option, isSelected: commitment == option)
-                                .onTapGesture { withAnimation(.snappy) { commitment = option } }
+                if mode == .edit {
+                    section("Commitment") {
+                        HStack(spacing: 10) {
+                            ForEach(Commitment.allCases) { option in
+                                CommitmentCard(commitment: option, isSelected: commitment == option)
+                                    .onTapGesture { withAnimation(.snappy) { commitment = option } }
+                            }
                         }
+                        .sensoryFeedback(.selection, trigger: commitment)
                     }
-                    .sensoryFeedback(.selection, trigger: commitment)
                 }
             }
             .padding(20)
@@ -92,8 +94,9 @@ struct PreferencesView: View {
         .background(Theme.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom) {
             Button(mode == .onboarding ? "Next" : "Save") {
+                // Commitment isn't asked during setup; it's only editable later from Profile.
                 store.savePreferences(firstName: firstName, lastName: lastName, city: city,
-                                      season: season, commitment: commitment)
+                                      season: season, commitment: mode == .edit ? commitment : nil)
                 onDone()
             }
             .buttonStyle(PrimaryButtonStyle())
@@ -122,7 +125,7 @@ struct PreferencesView: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.rounded(.headline)).foregroundStyle(.secondary)
+            Text(title).font(.display(.headline)).foregroundStyle(.secondary)
             content()
         }
     }
@@ -142,10 +145,10 @@ private struct CommitmentCard: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: commitment.symbol)
-                .font(.title2.weight(.semibold))
-            Text(commitment.label).font(.rounded(.headline))
+                .font(.app(.title2, weight: .semibold))
+            Text(commitment.label).font(.display(.headline))
             Text(commitment.detail)
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(isSelected ? .white.opacity(0.9) : .secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -156,7 +159,7 @@ private struct CommitmentCard: View {
         .foregroundStyle(isSelected ? .white : .primary)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isSelected ? AnyShapeStyle(Theme.water.gradient) : AnyShapeStyle(Theme.card))
+                .fill(isSelected ? AnyShapeStyle(Theme.primary.gradient) : AnyShapeStyle(Theme.card))
         }
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)

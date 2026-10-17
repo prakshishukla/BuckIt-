@@ -14,7 +14,7 @@ struct CouponCardView: View {
                 SponsorBadge(sponsor: coupon.sponsor, style: .onColor, compact: true)
                 Spacer()
                 Text("DEMO")
-                    .font(.caption2.weight(.heavy))
+                    .font(.app(.caption2, weight: .heavy))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
                     .background(.white.opacity(0.25), in: Capsule())
@@ -22,27 +22,27 @@ struct CouponCardView: View {
             }
 
             Text(coupon.headline)
-                .font(.rounded(.title2, weight: .heavy))
+                .font(.display(.title2, weight: .heavy))
             Text(coupon.detail)
-                .font(.subheadline)
+                .font(.app(.subheadline))
                 .opacity(0.88)
 
             HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("CODE").font(.caption2.weight(.bold)).opacity(0.75)
+                    Text("CODE").font(.app(.caption2, weight: .bold)).opacity(0.75)
                     Button {
                         UIPasteboard.general.string = coupon.code
                         withAnimation { copied = true }
                     } label: {
                         HStack(spacing: 6) {
                             Text(coupon.code).font(.system(.title3, design: .monospaced, weight: .bold))
-                            Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.caption)
+                            Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.app(.caption))
                         }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Code \(coupon.code). Tap to copy.")
                     Text("Expires \(coupon.expiresAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
+                        .font(.app(.caption))
                         .opacity(0.8)
                 }
                 Spacer()
@@ -58,7 +58,7 @@ struct CouponCardView: View {
                 } label: {
                     Label(coupon.redeemed ? "Used · tap to undo" : "Mark as used",
                           systemImage: coupon.redeemed ? "arrow.uturn.backward" : "checkmark.circle")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.app(.subheadline, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(.white.opacity(0.2), in: Capsule())
@@ -75,7 +75,7 @@ struct CouponCardView: View {
         .overlay {
             if coupon.redeemed {
                 Text("USED")
-                    .font(.system(size: 44, weight: .heavy, design: .rounded))
+                    .font(.display(size: 44, weight: .heavy))
                     .foregroundStyle(.white.opacity(0.9))
                     .padding(.horizontal, 16)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.9), lineWidth: 4))

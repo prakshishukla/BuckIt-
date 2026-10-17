@@ -36,14 +36,14 @@ struct CapturePreviewView: View {
                             }
                             .accessibilityLabel("Location: \(locationName). Tap to edit.")
                             ChipView(text: capturedAt.formatted(date: .omitted, time: .shortened), symbol: "clock",
-                                     tint: Theme.evergreen)
+                                     tint: Theme.teal)
                                 .accessibilityLabel("Taken at \(capturedAt.formatted(date: .omitted, time: .shortened))")
                         }
                         Button {
                             showTagSheet = true
                         } label: {
                             ChipView(text: taggedUsers.isEmpty ? "Tag friends" : "With " + taggedUsers.map(\.firstName).formatted(.list(type: .and)),
-                                     symbol: "person.2.fill", isSelected: !taggedUsers.isEmpty, tint: Color(hex: "#9B51E0"))
+                                     symbol: "person.2.fill", isSelected: !taggedUsers.isEmpty, tint: Theme.plum)
                         }
                     }
                     .buttonStyle(.plain)
@@ -56,7 +56,7 @@ struct CapturePreviewView: View {
                     if challenge.isSponsored {
                         Label("This is a sponsored challenge. Your photo will be checked against \(challenge.criteria.count) criteria to unlock the reward.",
                               systemImage: "sparkles")
-                            .font(.footnote)
+                            .font(.app(.footnote))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -116,8 +116,8 @@ struct TagFriendsSheet: View {
                         Text(friend.fullName).foregroundStyle(.primary)
                         Spacer()
                         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(selected ? Theme.water : .secondary)
+                            .font(.app(.title3))
+                            .foregroundStyle(selected ? Theme.primary : .secondary)
                     }
                 }
                 .accessibilityAddTraits(selected ? AccessibilityTraits.isSelected : AccessibilityTraits())

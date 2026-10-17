@@ -13,8 +13,6 @@ struct ChallengesView: View {
     @State private var categoryFilter: ChallengeCategory?
     @Namespace private var zoom
 
-    private static let sectionOrder = ["Sponsored picks", "Local", "Parks & Adventures"]
-
     var body: some View {
         @Bindable var store = store
         NavigationStack(path: $store.challengesPath) {
@@ -24,18 +22,14 @@ struct ChallengesView: View {
                         ForEach(ListTab.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-
-                    filterChips
 
                     switch tab {
                     case .sponsored: sponsoredList
                     case .groups: groupsList
                     }
                 }
+                .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .animation(.snappy, value: commitmentFilter)
-                .animation(.snappy, value: categoryFilter)
             }
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle("Challenges")
@@ -43,64 +37,50 @@ struct ChallengesView: View {
                 ChallengeDetailView(challenge: challenge)
                     .zoomDestination(id: challenge.id, in: zoom)
             }
-        }
-    }
-
-    // MARK: - Filters
-
-    private var tabChallenges: [Challenge] {
-        switch tab {
-        case .sponsored:
-            return SeedData.sponsoredChallenges
-        case .groups:
-            let ids = store.myGroups.flatMap(\.challengeIDs)
-            return ids.compactMap(SeedData.challenge)
-        }
-    }
-
-    private func passesFilters(_ c: Challenge) -> Bool {
-        (commitmentFilter == nil || c.commitment == commitmentFilter) && (categoryFilter == nil || c.category == categoryFilter)
-    }
-
-    private var filterChips: some View {
-        let categories = ChallengeCategory.allCases.filter { cat in tabChallenges.contains { $0.category == cat } }
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                FilterChip(title: "All", isSelected: commitmentFilter == nil && categoryFilter == nil) {
-                    commitmentFilter = nil
-                    categoryFilter = nil
-                }
-                ForEach(Commitment.allCases) { c in
-                    FilterChip(title: c.label, symbol: c.symbol, isSelected: commitmentFilter == c) {
-                        commitmentFilter = commitmentFilter == c ? nil : c
-                    }
-                }
-                Divider().frame(height: 22)
-                ForEach(categories) { cat in
-                    FilterChip(title: cat.label, symbol: cat.symbol, isSelected: categoryFilter == cat) {
-                        categoryFilter = categoryFilter == cat ? nil : cat
-                    }
-                }
+            .navigationDestination(for: GroupRoute.self) { route in
+                GroupDetailView(groupID: route.id, mode: .challenges, zoom: zoom)
             }
-            .padding(.horizontal, 16)
         }
-        .sensoryFeedback(.selection, trigger: "\(String(describing: commitmentFilter))\(String(describing: categoryFilter))")
     }
 
-    // MARK: - Lists
+    // MARK: - Sponsored
 
     @ViewBuilder
     private var sponsoredList: some View {
-        let items = SeedData.sponsoredChallenges.filter(passesFilters)
-        if items.isEmpty {
-            noMatches
+        let all = SeedData.sponsoredChallenges
+        // Completed challenges drop off the list.
+        let open = all.filter { store.myPost(for: $0.id) == nil }
+        let items = open.filter { c in
+            (commitmentFilter == nil || c.commitment == commitmentFilter) && (categoryFilter == nil || c.category == categoryFilter)
+        }
+
+        ChallengeFilterBar(commitment: $commitmentFilter, category: $categoryFilter,
+                           categories: ChallengeCategory.allCases.filter { cat in all.contains { $0.category == cat } })
+
+        if open.isEmpty {
+            EmptyStateView(symbol: "gift", title: "You've done them all! 🎉",
+                           message: "Check your Wallet for your rewards.")
+        } else if items.isEmpty {
+            EmptyStateView(symbol: "line.3.horizontal.decrease.circle", title: "No matches",
+                           message: "Try a different time or activity.", actionTitle: "Clear filters") {
+                commitmentFilter = nil
+                categoryFilter = nil
+            }
         } else {
             LazyVStack(spacing: 12) {
-                ForEach(items) { cardLink($0) }
+                ForEach(items) { challenge in
+                    NavigationLink(value: challenge) {
+                        ChallengeCardView(challenge: challenge)
+                    }
+                    .buttonStyle(.plain)
+                    .zoomSource(id: challenge.id, in: zoom)
+                }
             }
-            .padding(.horizontal, 16)
+            .animation(.snappy, value: items.map(\.id))
         }
     }
+
+    // MARK: - My Groups (only groups I'm in; tap one to see its list)
 
     @ViewBuilder
     private var groupsList: some View {
@@ -108,50 +88,52 @@ struct ChallengesView: View {
             EmptyStateView(symbol: "person.3.fill", title: "No groups yet",
                            message: "Create a group from your Profile to start a shared bucket list.")
         } else {
-            LazyVStack(alignment: .leading, spacing: 22) {
+            LazyVStack(spacing: 12) {
                 ForEach(store.myGroups) { group in
-                    let items = group.challengeIDs.compactMap(SeedData.challenge).filter(passesFilters)
-                    let done = group.challengeIDs.filter { store.myPost(for: $0) != nil }.count
-                    VStack(alignment: .leading, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(group.listName).font(.rounded(.title2, weight: .heavy))
-                            Text("\(group.emoji) \(group.name) · \(done)/\(group.challengeIDs.count) done")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        if items.isEmpty {
-                            noMatches
-                        }
-                        ForEach(Self.sectionOrder, id: \.self) { section in
-                            let sectionItems = items.filter { ($0.section ?? "Sponsored picks") == section }
-                            if !sectionItems.isEmpty {
-                                Text(section.uppercased())
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 4)
-                                ForEach(sectionItems) { cardLink($0) }
-                            }
-                        }
+                    NavigationLink(value: GroupRoute(id: group.id)) {
+                        GroupCard(group: group)
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
         }
     }
+}
 
-    private var noMatches: some View {
-        EmptyStateView(symbol: "line.3.horizontal.decrease.circle", title: "No matches",
-                       message: "Try a different filter.", actionTitle: "Clear filters") {
-            commitmentFilter = nil
-            categoryFilter = nil
-        }
-    }
+/// Group tile on the My Groups tab.
+private struct GroupCard: View {
+    @Environment(AppStore.self) private var store
+    let group: BuckGroup
 
-    private func cardLink(_ challenge: Challenge) -> some View {
-        NavigationLink(value: challenge) {
-            ChallengeCardView(challenge: challenge)
+    var body: some View {
+        let left = group.challengeIDs.filter { store.myPost(for: $0) == nil }.count
+        let done = group.challengeIDs.count - left
+
+        HStack(spacing: 14) {
+            Text(group.emoji)
+                .font(.system(size: 32))
+                .frame(width: 64, height: 64)
+                .background(Theme.lavender.opacity(0.3), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(group.name)
+                    .font(.display(.title3))
+                    .foregroundStyle(Theme.plum)
+                Text(group.listName)
+                    .font(.app(.subheadline, weight: .medium))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    AvatarStack(users: store.members(of: group), size: 22, maxCount: 4)
+                    Text("\(left) to go · \(done) done")
+                        .font(.app(.caption, weight: .semibold))
+                        .foregroundStyle(Theme.teal)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.app(.subheadline, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
-        .buttonStyle(.plain)
-        .zoomSource(id: challenge.id, in: zoom)
+        .card(padding: 14)
+        .contentShape(Rectangle())
     }
 }

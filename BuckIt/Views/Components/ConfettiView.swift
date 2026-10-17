@@ -42,7 +42,7 @@ struct ConfettiView: View {
     }
 
     private func fire() {
-        let colors: [Color] = [Theme.water, Theme.sunshine, Theme.evergreen, .pink, .orange, Color(hex: "#56CCF2")]
+        let colors: [Color] = [Theme.primary, Theme.teal, Theme.plumFixed, Theme.lavender, Theme.cream, Color(hex: "#7FC8D6")]
         pieces = (0..<110).map { _ in
             Piece(angle: Double.random(in: (-0.92 * Double.pi)...(-0.08 * Double.pi)),
                   speed: Double.random(in: 320...950),

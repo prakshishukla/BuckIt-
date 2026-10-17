@@ -36,12 +36,12 @@ struct InviteFriendsView: View {
                                 withAnimation(.snappy) { store.toggleAdded(friend.id) }
                             } label: {
                                 Text(added ? "Added ✓" : "Add")
-                                    .font(.subheadline.weight(.bold))
+                                    .font(.app(.subheadline, weight: .bold))
                                     .frame(minWidth: 64)
                                     .padding(.vertical, 7)
                                     .padding(.horizontal, 12)
-                                    .foregroundStyle(added ? Theme.evergreen : .white)
-                                    .background(added ? AnyShapeStyle(Theme.evergreen.opacity(0.14)) : AnyShapeStyle(Theme.water),
+                                    .foregroundStyle(added ? Theme.teal : .white)
+                                    .background(added ? AnyShapeStyle(Theme.teal.opacity(0.14)) : AnyShapeStyle(Theme.primary),
                                                 in: Capsule())
                             }
                             .buttonStyle(.borderless)
@@ -57,11 +57,11 @@ struct InviteFriendsView: View {
                                 invite(friend)
                             } label: {
                                 Label(invited ? "Invited" : "Invite", systemImage: invited ? "checkmark" : "message.fill")
-                                    .font(.subheadline.weight(.bold))
+                                    .font(.app(.subheadline, weight: .bold))
                                     .padding(.vertical, 7)
                                     .padding(.horizontal, 12)
-                                    .foregroundStyle(Theme.water)
-                                    .background(Theme.water.opacity(0.12), in: Capsule())
+                                    .foregroundStyle(Theme.primary)
+                                    .background(Theme.primary.opacity(0.12), in: Capsule())
                             }
                             .buttonStyle(.borderless)
                         }
@@ -71,7 +71,7 @@ struct InviteFriendsView: View {
                 } footer: {
                     ShareLink(item: SeedData.inviteURL, message: Text(SeedData.inviteMessage)) {
                         Label("Share invite link", systemImage: "square.and.arrow.up")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.app(.subheadline, weight: .semibold))
                     }
                     .padding(.top, 6)
                 }
@@ -79,7 +79,7 @@ struct InviteFriendsView: View {
 
             Section("Name your group") {
                 TextField("Group name", text: $groupName)
-                    .font(.rounded(.body, weight: .semibold))
+                    .font(.display(.body, weight: .semibold))
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -120,8 +120,8 @@ private struct ContactRow<Trailing: View>: View {
         HStack(spacing: 12) {
             AvatarView(user: user, size: 42)
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.fullName).font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                Text(user.fullName).font(.app(.headline))
+                Text(subtitle).font(.app(.caption)).foregroundStyle(.secondary)
             }
             Spacer()
             trailing()

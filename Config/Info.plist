@@ -8,5 +8,15 @@
 	<string>$(GEMINI_API_KEY)</string>
 	<key>GEMINI_MODEL</key>
 	<string>$(GEMINI_MODEL)</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>PlayfairDisplay-SemiBold.ttf</string>
+		<string>PlayfairDisplay-Bold.ttf</string>
+		<string>PlayfairDisplay-ExtraBold.ttf</string>
+		<string>DMSans-Regular.ttf</string>
+		<string>DMSans-Medium.ttf</string>
+		<string>DMSans-SemiBold.ttf</string>
+		<string>DMSans-Bold.ttf</string>
+	</array>
 </dict>
 </plist>

@@ -48,16 +48,6 @@ struct FeedView: View {
             }
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle("BuckIt")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if let crew = store.crewGroup {
-                        Text("\(crew.emoji) \(crew.memberIDs.count)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .accessibilityLabel("\(crew.memberIDs.count) members in \(crew.name)")
-                    }
-                }
-            }
         }
     }
 }
