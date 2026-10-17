@@ -4,8 +4,8 @@ import SwiftUI
 struct ChallengeFilterBar: View {
     @Binding var commitment: Commitment?
     @Binding var category: ChallengeCategory?
-    /// Activity types present in the list being filtered.
-    let categories: [ChallengeCategory]
+    /// Always the full set, so the dropdown is identical on Sponsored and My Lists.
+    var categories: [ChallengeCategory] = ChallengeCategory.allCases
 
     var body: some View {
         HStack(spacing: 10) {

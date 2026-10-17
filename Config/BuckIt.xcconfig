@@ -1,11 +1,11 @@
 // Shared build settings for BuckIt.
-// Real secrets live in Config/Secrets.xcconfig (gitignored). Copy Secrets.example.xcconfig to get started.
+// Put your Gemini key in Config/Secrets.xcconfig (gitignored); copy Secrets.example.xcconfig to start.
 
-// Leave empty to use the offline MockVerificationService.
+// Empty = offline demo verifier.
 GEMINI_API_KEY =
 // Any Gemini vision-capable model id.
 GEMINI_MODEL = gemini-flash-latest
-// YES keeps the stage demo safe: submissions always verify, even if Gemini disagrees or is unreachable.
-FORCE_VERIFY = YES
+// YES = always pass verification (stage safety net). NO = Gemini's verdict decides.
+FORCE_VERIFY = NO
 
 #include? "Secrets.xcconfig"

@@ -3,7 +3,7 @@ import SwiftUI
 struct ChallengesView: View {
     enum ListTab: String, CaseIterable, Identifiable {
         case sponsored = "Sponsored"
-        case groups = "My Groups"
+        case lists = "My Lists"
         var id: String { rawValue }
     }
 
@@ -25,7 +25,7 @@ struct ChallengesView: View {
 
                     switch tab {
                     case .sponsored: sponsoredList
-                    case .groups: groupsList
+                    case .lists: listsList
                     }
                 }
                 .padding(.horizontal, 16)
@@ -37,8 +37,11 @@ struct ChallengesView: View {
                 ChallengeDetailView(challenge: challenge)
                     .zoomDestination(id: challenge.id, in: zoom)
             }
-            .navigationDestination(for: GroupRoute.self) { route in
-                GroupDetailView(groupID: route.id, mode: .challenges, zoom: zoom)
+            .navigationDestination(for: ListRoute.self) { route in
+                ListDetailView(listID: route.id, mode: .challenges, zoom: zoom)
+            }
+            .navigationDestination(for: FriendRoute.self) { route in
+                FriendProfileView(friendID: route.id)
             }
         }
     }
@@ -54,8 +57,7 @@ struct ChallengesView: View {
             (commitmentFilter == nil || c.commitment == commitmentFilter) && (categoryFilter == nil || c.category == categoryFilter)
         }
 
-        ChallengeFilterBar(commitment: $commitmentFilter, category: $categoryFilter,
-                           categories: ChallengeCategory.allCases.filter { cat in all.contains { $0.category == cat } })
+        ChallengeFilterBar(commitment: $commitmentFilter, category: $categoryFilter)
 
         if open.isEmpty {
             EmptyStateView(symbol: "gift", title: "You've done them all! 🎉",
@@ -80,18 +82,20 @@ struct ChallengesView: View {
         }
     }
 
-    // MARK: - My Groups (only groups I'm in; tap one to see its list)
+    // MARK: - My Lists (only lists I'm on; tap one to see what's left)
 
     @ViewBuilder
-    private var groupsList: some View {
-        if store.myGroups.isEmpty {
-            EmptyStateView(symbol: "person.3.fill", title: "No groups yet",
-                           message: "Create a group from your Profile to start a shared bucket list.")
+    private var listsList: some View {
+        // Lists I've finished live under Profile → Completed lists, not here.
+        if store.activeLists.isEmpty {
+            EmptyStateView(symbol: "list.bullet", title: store.myLists.isEmpty ? "No lists yet" : "All your lists are done! 🎉",
+                           message: store.myLists.isEmpty ? "Create a list from your Profile and add people to it."
+                                                          : "Find them under Profile → Completed lists, or start a new one.")
         } else {
             LazyVStack(spacing: 12) {
-                ForEach(store.myGroups) { group in
-                    NavigationLink(value: GroupRoute(id: group.id)) {
-                        GroupCard(group: group)
+                ForEach(store.activeLists) { list in
+                    NavigationLink(value: ListRoute(id: list.id)) {
+                        ListCard(list: list)
                     }
                     .buttonStyle(.plain)
                 }
@@ -100,29 +104,26 @@ struct ChallengesView: View {
     }
 }
 
-/// Group tile on the My Groups tab.
-private struct GroupCard: View {
+/// List tile on the My Lists tab.
+private struct ListCard: View {
     @Environment(AppStore.self) private var store
-    let group: BuckGroup
+    let list: BuckList
 
     var body: some View {
-        let left = group.challengeIDs.filter { store.myPost(for: $0) == nil }.count
-        let done = group.challengeIDs.count - left
+        let left = list.challengeIDs.filter { store.myPost(for: $0) == nil }.count
+        let done = list.challengeIDs.count - left
 
         HStack(spacing: 14) {
-            Text(group.emoji)
+            Text(list.emoji)
                 .font(.system(size: 32))
                 .frame(width: 64, height: 64)
                 .background(Theme.lavender.opacity(0.3), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
-                Text(group.name)
+                Text(list.name)
                     .font(.display(.title3))
                     .foregroundStyle(Theme.plum)
-                Text(group.listName)
-                    .font(.app(.subheadline, weight: .medium))
-                    .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                    AvatarStack(users: store.members(of: group), size: 22, maxCount: 4)
+                    AvatarStack(users: store.members(of: list), size: 22, maxCount: 4)
                     Text("\(left) to go · \(done) done")
                         .font(.app(.caption, weight: .semibold))
                         .foregroundStyle(Theme.teal)

@@ -10,7 +10,7 @@ struct Comment: Codable, Identifiable {
 struct Post: Codable, Identifiable {
     var id: UUID
     var userID: UUID
-    var groupID: UUID
+    var listID: UUID
     var challengeID: String
     /// JPEG filename in Documents/photos, or "asset:<name>" for bundled images.
     var photoFilename: String
@@ -18,7 +18,6 @@ struct Post: Codable, Identifiable {
     var locationName: String
     var date: Date
     var taggedUserIDs: [UUID]
-    var verified: Bool
     /// emoji -> user IDs
     var reactions: [String: [UUID]]
     var comments: [Comment]

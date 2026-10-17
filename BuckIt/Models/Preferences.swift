@@ -40,23 +40,50 @@ enum Season: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Activity type. The same set is used for sponsored challenges, list items, filters and bucket water colors.
 /// Named `ChallengeCategory` (not `Category`) to avoid clashing with the Objective-C runtime's `Category` type.
 enum ChallengeCategory: String, Codable, CaseIterable, Identifiable {
-    case hike, water, park, island, market, ride, shopping, finance
+    case outdoors, bigTrips, smallTrips, food, localEvents, culture, entertainment, withFriends
 
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+
+    var label: String {
+        switch self {
+        case .outdoors: "Outdoors"
+        case .bigTrips: "Big trips"
+        case .smallTrips: "Small trips"
+        case .food: "Food"
+        case .localEvents: "Local events"
+        case .culture: "Culture"
+        case .entertainment: "Entertainment"
+        case .withFriends: "With friends"
+        }
+    }
 
     var symbol: String {
         switch self {
-        case .hike: "figure.hiking"
-        case .water: "figure.pool.swim"
-        case .park: "tree.fill"
-        case .island: "ferry.fill"
-        case .market: "basket.fill"
-        case .ride: "bicycle"
-        case .shopping: "cart.fill"
-        case .finance: "creditcard.fill"
+        case .outdoors: "tree.fill"
+        case .bigTrips: "airplane"
+        case .smallTrips: "car.fill"
+        case .food: "fork.knife"
+        case .localEvents: "mappin.and.ellipse"
+        case .culture: "building.columns.fill"
+        case .entertainment: "music.note"
+        case .withFriends: "person.3.fill"
+        }
+    }
+
+    /// Default water color for this type in the bucket (changeable in Profile → Bucket colors).
+    var defaultHex: String {
+        switch self {
+        case .outdoors: "#3F8F7B"
+        case .bigTrips: "#05668D"
+        case .smallTrips: "#2BA3B5"
+        case .food: "#E07A5F"
+        case .localEvents: "#E9B44C"
+        case .culture: "#513B56"
+        case .entertainment: "#8E7CC3"
+        case .withFriends: "#D96C9A"
         }
     }
 }

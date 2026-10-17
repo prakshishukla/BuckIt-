@@ -9,33 +9,38 @@ struct PostCardView: View {
     static let reactionEmojis = ["🔥", "🙌", "😂", "🌊"]
 
     var body: some View {
-        let challenge = SeedData.challenge(post.challengeID)
+        let challenge = store.challenge(post.challengeID)
         let author = store.user(post.userID)
-        let tagged = post.taggedUserIDs.compactMap { store.user($0) }
+        // The author and everyone they tagged did it together: "Maya and Priya".
+        let people = ([author] + post.taggedUserIDs.map { store.user($0) }).compactMap { $0 }
+        let list = store.list(post.listID)
 
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 10) {
-                AvatarView(user: author, size: 40)
+                AvatarStack(users: people, size: 40, maxCount: 3)
                 VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 4) {
-                        Text(author?.id == store.me.id ? "You" : (author?.firstName ?? "Someone"))
-                            .font(.app(.headline))
-                        if post.verified {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(Theme.primary)
-                                .accessibilityLabel("Verified")
-                        }
-                    }
-                    Text(post.date.formatted(.relative(presentation: .named)))
+                    PeopleNames(people: people, meID: store.me.id)
+                    Text([list.map { "\($0.emoji) \($0.name)" }, post.date.formatted(.relative(presentation: .named))]
+                            .compactMap { $0 }.joined(separator: " · "))
                         .font(.app(.caption))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
 
-            Text("completed **\(challenge?.title ?? "a challenge")**")
-                .font(.app(.subheadline))
+            if let challenge {
+                NavigationLink(value: challenge) {
+                    HStack(spacing: 4) {
+                        Text("completed").foregroundStyle(.secondary)
+                        Text(challenge.title).font(.app(.subheadline, weight: .bold)).foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .font(.app(.subheadline))
+                }
+                .buttonStyle(.plain)
+            }
 
             DualPhotoView(main: PhotoStore.image(post.photoFilename), selfie: PhotoStore.image(post.selfieFilename))
                 .overlay(alignment: .bottomLeading) {
@@ -55,15 +60,6 @@ struct PostCardView: View {
 
             if let caption = post.caption {
                 Text(caption).font(.app(.body))
-            }
-
-            if !tagged.isEmpty {
-                HStack(spacing: 6) {
-                    AvatarStack(users: tagged, size: 22)
-                    Text("with " + tagged.map(\.firstName).formatted(.list(type: .and)))
-                        .font(.app(.caption))
-                        .foregroundStyle(.secondary)
-                }
             }
 
             if let reward = post.sharedRewardHeadline, let sponsor = challenge?.sponsor {
@@ -199,5 +195,34 @@ struct SponsoredTag: View {
         .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sponsored by \(sponsor.name)")
+    }
+}
+
+/// "Maya and Priya" — friends' names open their profiles.
+private struct PeopleNames: View {
+    let people: [User]
+    let meID: UUID
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
+                if person.id == meID {
+                    Text("You")
+                } else {
+                    NavigationLink(value: FriendRoute(id: person.id)) {
+                        Text(person.firstName).foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens \(person.firstName)'s profile")
+                }
+                if index < people.count - 2 {
+                    Text(", ")
+                } else if index == people.count - 2 {
+                    Text(" and ")
+                }
+            }
+        }
+        .font(.app(.headline))
+        .lineLimit(1)
     }
 }

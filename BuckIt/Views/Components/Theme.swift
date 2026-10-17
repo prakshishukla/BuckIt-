@@ -98,6 +98,14 @@ enum AppearanceSetup {
 }
 
 extension Color {
+    /// "#RRGGBB" for persisting user-picked colors.
+    var hexString: String {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        func c(_ v: CGFloat) -> Int { Int((min(max(v, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", c(r), c(g), c(b))
+    }
+
     init(hex: String) {
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
         var value: UInt64 = 0
@@ -109,18 +117,7 @@ extension Color {
 }
 
 extension ChallengeCategory {
-    var tint: Color {
-        switch self {
-        case .hike: Theme.teal
-        case .water: Theme.primary
-        case .park: Color(hex: "#3F8F7B")
-        case .island: Theme.deepFixed
-        case .market: Theme.plumFixed
-        case .ride: Color(hex: "#7C6BB0")
-        case .shopping: Color(hex: "#8A5A83")
-        case .finance: Theme.plumFixed
-        }
-    }
+    var tint: Color { Color(hex: defaultHex) }
 }
 
 extension Challenge {

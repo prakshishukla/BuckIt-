@@ -6,9 +6,11 @@ import SwiftUI
 struct CaptureView: View {
     enum Phase { case back, selfie }
 
-    let challenge: Challenge
+    /// nil when opened from the Home camera (the item is picked after shooting).
+    let challenge: Challenge?
     var onCancel: () -> Void
-    var onCaptured: (UIImage, UIImage?) -> Void
+    /// main photo, optional selfie, and EXIF metadata when the photo came from the library
+    var onCaptured: (UIImage, UIImage?, PhotoMetadata?) -> Void
 
     @State private var camera = CameraService()
     @State private var cameraReady = false
@@ -69,7 +71,7 @@ struct CaptureView: View {
             Spacer()
             VStack(spacing: 2) {
                 Text("BuckIt.").font(.display(.title3, weight: .heavy)).foregroundStyle(.white)
-                Text(challenge.title).font(.app(.caption)).foregroundStyle(.white.opacity(0.7))
+                Text(challenge?.title ?? "Capture a moment").font(.app(.caption)).foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
             Color.clear.frame(width: 40, height: 40)
@@ -159,7 +161,7 @@ struct CaptureView: View {
                 if phase == .selfie, let mainShot {
                     Button("Skip") {
                         countdown = nil
-                        onCaptured(mainShot, nil)
+                        onCaptured(mainShot, nil, nil)
                     }
                     .font(.app(.headline))
                     .foregroundStyle(.white)
@@ -213,10 +215,10 @@ struct CaptureView: View {
                 await camera.switchCamera(to: .front)
                 withAnimation(.spring) { phase = .selfie }
             } else {
-                onCaptured(image, nil)
+                onCaptured(image, nil, nil)
             }
         case .selfie:
-            onCaptured(mainShot ?? image, image)
+            onCaptured(mainShot ?? image, image, nil)
         }
     }
 
@@ -233,19 +235,20 @@ struct CaptureView: View {
     }
 
     private func useDemoPhoto() {
-        guard let hike = UIImage(named: "demo-hike") else { return }
+        guard let hike = UIImage(named: SeedData.demoPhotoName) else { return }
         shutterCount += 1
         withAnimation(.easeOut(duration: 0.08)) { flash = true }
         withAnimation(.easeIn(duration: 0.3).delay(0.08)) { flash = false }
-        onCaptured(hike, UIImage(named: "demo-selfie"))
+        onCaptured(hike, UIImage(named: "demo-selfie"), nil)
     }
 
     private func loadPicked(_ item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
+        let metadata = PhotoMetadata.read(from: data)
         if phase == .selfie, let mainShot {
-            onCaptured(mainShot, image)
+            onCaptured(mainShot, image, nil)
         } else {
-            onCaptured(image, nil)
+            onCaptured(image, nil, metadata)
         }
     }
 }

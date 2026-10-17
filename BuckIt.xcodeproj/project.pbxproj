@@ -10,7 +10,6 @@
 		B0C1A0000000000000000001 /* BuckIt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuckIt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0C1A0000000000000000010 /* BuckIt.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuckIt.xcconfig; sourceTree = "<group>"; };
 		B0C1A0000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B0C1A0000000000000000012 /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.example.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,7 +52,6 @@
 			isa = PBXGroup;
 			children = (
 				B0C1A0000000000000000010 /* BuckIt.xcconfig */,
-				B0C1A0000000000000000012 /* Secrets.example.xcconfig */,
 				B0C1A0000000000000000011 /* Info.plist */,
 			);
 			path = Config;

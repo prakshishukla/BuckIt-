@@ -2,10 +2,12 @@ import SwiftUI
 
 /// BuckIt's "streak pet": a bucket that fills with animated water instead of growing.
 /// `level` is 0...1 and animates smoothly with `withAnimation`.
+/// `layers` colors each drop (bottom first) by the activity type that earned it; empty = plain blue water.
 struct WaterBucketView: View {
     var level: Double
     var size: CGFloat = 180
     var outline: Color = Theme.plum
+    var layers: [Color] = []
 
     var body: some View {
         let lineWidth = max(2.5, size * 0.035)
@@ -22,12 +24,16 @@ struct WaterBucketView: View {
 
                 TimelineView(.animation) { timeline in
                     let t = timeline.date.timeIntervalSinceReferenceDate
-                    ZStack {
-                        WaveShape(level: level, phase: t * 1.7 + 1.4, amplitude: amplitude * 0.8)
-                            .fill(Theme.primary.opacity(0.35))
-                        WaveShape(level: level, phase: t * 2.3, amplitude: amplitude)
-                            .fill(LinearGradient(colors: [Color(hex: "#2BA3B5"), Theme.primary, Theme.deepFixed],
-                                                 startPoint: .top, endPoint: .bottom))
+                    if layers.isEmpty {
+                        ZStack {
+                            WaveShape(level: level, phase: t * 1.7 + 1.4, amplitude: amplitude * 0.8)
+                                .fill(Theme.primary.opacity(0.35))
+                            WaveShape(level: level, phase: t * 2.3, amplitude: amplitude)
+                                .fill(LinearGradient(colors: [Color(hex: "#2BA3B5"), Theme.primary, Theme.deepFixed],
+                                                     startPoint: .top, endPoint: .bottom))
+                        }
+                    } else {
+                        LayeredWater(layers: layers, level: level, t: t, amplitude: amplitude, size: size)
                     }
                 }
                 .clipShape(BucketShape())
@@ -110,5 +116,30 @@ struct WaveShape: Shape {
         p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
         p.closeSubpath()
         return p
+    }
+}
+
+/// Stacked bands of water, one per drop. The top band rises with `level`; lower bands sit at fixed heights
+/// with gently wavy boundaries. Drawn back-to-front: the top band first, then each lower band over it.
+private struct LayeredWater: View {
+    let layers: [Color]
+    let level: Double
+    let t: TimeInterval
+    let amplitude: Double
+    let size: CGFloat
+
+    var body: some View {
+        let n = layers.count
+        let step = 1 / Double(SeedData.dropsPerBucket)
+        ZStack {
+            WaveShape(level: level, phase: t * 1.7 + 1.4, amplitude: amplitude * 0.8)
+                .fill(layers[n - 1].opacity(0.45))
+            WaveShape(level: level, phase: t * 2.3, amplitude: amplitude)
+                .fill(LinearGradient(colors: [layers[n - 1].opacity(0.85), layers[n - 1]], startPoint: .top, endPoint: .bottom))
+            ForEach(Array((0..<max(0, n - 1)).reversed()), id: \.self) { k in
+                WaveShape(level: Double(k + 1) * step, phase: t * 0.9 + Double(k) * 1.3, amplitude: Double(size) * 0.007)
+                    .fill(LinearGradient(colors: [layers[k].opacity(0.9), layers[k]], startPoint: .top, endPoint: .bottom))
+            }
+        }
     }
 }

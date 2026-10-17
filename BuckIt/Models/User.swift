@@ -7,7 +7,7 @@ struct User: Codable, Identifiable {
     var city: String
     var season: Season
     var commitment: Commitment
-    var groupIDs: [UUID]
+    var listIDs: [UUID]
     var wallet: [Coupon]
     /// Drives the water bucket on Profile.
     var completedCount: Int

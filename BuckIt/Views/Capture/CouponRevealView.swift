@@ -148,7 +148,8 @@ struct PostedView: View {
         VStack(spacing: 20) {
             Spacer()
             ZStack(alignment: .top) {
-                WaterBucketView(level: level, size: 190)
+                WaterBucketView(level: level, size: 190,
+                                layers: store.layers(forCount: count, full: count > 0 && count % SeedData.dropsPerBucket == 0))
                 SplashView(trigger: splash).padding(.top, 30)
             }
             Text("Posted!")

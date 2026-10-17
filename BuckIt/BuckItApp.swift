@@ -50,14 +50,20 @@ struct MainTabView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(AppTab.home)
             ChallengesView()
-                .tabItem { Label("Challenges", systemImage: "target") }
+                .tabItem { Label("Challenges", systemImage: "list.bullet") }
                 .tag(AppTab.challenges)
             ProfileView()
-                .tabItem { Label("Profile", systemImage: "drop.fill") }
+                .tabItem { Label("Profile", systemImage: "person.fill") }
                 .tag(AppTab.profile)
         }
-        .fullScreenCover(item: $store.activeCapture) { challenge in
-            CaptureFlowView(challenge: challenge)
+        .fullScreenCover(item: $store.activeCapture) { request in
+            CaptureFlowView(request: request)
+        }
+        .overlay {
+            if let colors = store.overflowColors {
+                BucketOverflowView(colors: colors, bucketNumber: store.bucketNumber)
+                    .transition(.opacity)
+            }
         }
     }
 }

@@ -3,8 +3,18 @@ import Observation
 
 enum AppTab: Hashable { case home, challenges, profile }
 
-/// Navigation value for opening a group's list.
-struct GroupRoute: Hashable { let id: UUID }
+/// Navigation value for opening a list.
+struct ListRoute: Hashable { let id: UUID }
+
+/// Navigation value for opening a friend's profile.
+struct FriendRoute: Hashable { let id: UUID }
+
+/// What the capture flow was opened for: a specific item, or nil from the Home camera (pick the item after shooting).
+struct CaptureRequest: Identifiable {
+    let id = UUID()
+    var challenge: Challenge?
+    var listID: UUID?
+}
 
 /// Everything that persists across launches.
 struct DemoState: Codable {
@@ -14,13 +24,20 @@ struct DemoState: Codable {
     var user: User
     var friends: [User]
     var invitedIDs: Set<UUID> = []
-    var groups: [BuckGroup]
+    var lists: [BuckList]
+    /// Items people added themselves from a list's "+" sheet.
+    var customChallenges: [Challenge] = []
     var posts: [Post] = []
     var seedFeedEnabled = true
+    /// Custom bucket water colors per activity type (hex). Missing = the type's default.
+    var waterColorHex: [String: String] = [:]
 
     static var seed: DemoState {
-        DemoState(user: SeedData.me, friends: SeedData.friends, groups: SeedData.seedGroups,
-                  posts: SeedData.makeDemoPosts())
+        let mine = SeedData.makeMyPastPosts()
+        var user = SeedData.me
+        user.completedCount = mine.count
+        return DemoState(user: user, friends: SeedData.friends, lists: SeedData.seedLists,
+                         posts: SeedData.makeDemoPosts() + mine)
     }
 }
 
@@ -32,11 +49,14 @@ final class AppStore {
     // Transient UI state (not persisted)
     var selectedTab: AppTab = .home
     var challengesPath = NavigationPath()
-    var activeCapture: Challenge?
+    var profilePath = NavigationPath()
+    var activeCapture: CaptureRequest?
     /// The completion count the Profile bucket has animated up to.
     var bucketShownCount: Int
     var bucketLevel: Double
     var splashCount = 0
+    /// Set while the full-screen overflow celebration plays: the colors that were in the bucket.
+    var overflowColors: [Color]?
     private var isAnimatingBucket = false
 
     let verifier: any VerificationService = VerificationServiceFactory.make()
@@ -48,7 +68,7 @@ final class AppStore {
         bucketLevel = Self.level(for: loaded.user.completedCount)
 
         #if DEBUG
-        // Dev shortcut for screenshots: `-skipOnboarding` and `-tab home|challenges|profile` launch arguments.
+        // Dev shortcuts for screenshots: `-skipOnboarding`, `-tab home|challenges|profile`, `-openList <name prefix>`.
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-skipOnboarding") {
             state.hasSignedIn = true
@@ -57,17 +77,34 @@ final class AppStore {
         if let i = args.firstIndex(of: "-tab"), i + 1 < args.count {
             selectedTab = ["challenges": .challenges, "profile": .profile][args[i + 1]] ?? .home
         }
-        if let i = args.firstIndex(of: "-openGroup"), i + 1 < args.count, i + 1 < args.count,
-           let group = state.groups.first(where: { $0.name.lowercased().hasPrefix(args[i + 1].lowercased()) }) {
+        if let i = args.firstIndex(of: "-openList"), i + 1 < args.count,
+           let list = state.lists.first(where: { $0.name.lowercased().hasPrefix(args[i + 1].lowercased()) }) {
             selectedTab = .challenges
-            challengesPath.append(GroupRoute(id: group.id))
+            challengesPath.append(ListRoute(id: list.id))
+        }
+        if let i = args.firstIndex(of: "-openProfileList"), i + 1 < args.count,
+           let list = state.lists.first(where: { $0.name.lowercased().hasPrefix(args[i + 1].lowercased()) }) {
+            selectedTab = .profile
+            profilePath.append(ListRoute(id: list.id))
+        }
+        if args.contains("-completeDemo"), let hike = SeedData.challenge(SeedData.patagoniaHikeID),
+           let photo = UIImage(named: SeedData.demoPhotoName) {
+            // Posts the Patagonia hike (the 10th drop) so Profile plays the overflow animation.
+            completeChallenge(hike, listID: SeedData.trailsListID, photo: photo, selfie: nil, locationName: SeedData.fallbackLocation,
+                              date: .now, taggedUserIDs: [], caption: "", verified: true)
+            selectedTab = .profile
+        }
+        if let i = args.firstIndex(of: "-openFriend"), i + 1 < args.count,
+           let friend = state.friends.first(where: { $0.firstName.lowercased() == args[i + 1].lowercased() }) {
+            selectedTab = .profile
+            profilePath.append(FriendRoute(id: friend.id))
         }
         #endif
     }
 
     // MARK: - Persistence
 
-    private static var stateURL: URL { URL.documentsDirectory.appending(path: "buckit-demo-state-v2.json") }
+    private static var stateURL: URL { URL.documentsDirectory.appending(path: "buckit-demo-state-v4.json") }
 
     private static func load() -> DemoState? {
         guard let data = try? Data(contentsOf: stateURL) else { return nil }
@@ -96,20 +133,43 @@ final class AppStore {
     var me: User { state.user }
     var onBuckItFriends: [User] { state.friends.filter(\.isOnBuckIt) }
     var inviteFriends: [User] { state.friends.filter { !$0.isOnBuckIt } }
-    var myGroups: [BuckGroup] { state.groups.filter { $0.memberIDs.contains(me.id) } }
-    var crewGroup: BuckGroup? { state.groups.first { $0.id == SeedData.crewGroupID } }
+    var myLists: [BuckList] { state.lists.filter { $0.memberIDs.contains(me.id) } }
+    /// I've done every item on it.
+    func isCompleted(_ list: BuckList) -> Bool {
+        !list.challengeIDs.isEmpty && list.challengeIDs.allSatisfy { myPost(for: $0) != nil }
+    }
+
+    var activeLists: [BuckList] { myLists.filter { !isCompleted($0) } }
+    var completedLists: [BuckList] { myLists.filter { isCompleted($0) } }
+
+    /// How many items on a list someone has done.
+    func progress(of userID: UUID, in list: BuckList) -> Int {
+        list.challengeIDs.filter { hasDone(userID, $0) }.count
+    }
+
+    /// The list friends are added to during onboarding.
+    var summerList: BuckList? { state.lists.first { $0.id == SeedData.summerListID } }
 
     func user(_ id: UUID) -> User? {
         id == me.id ? me : state.friends.first { $0.id == id }
     }
 
-    func group(_ id: UUID) -> BuckGroup? { state.groups.first { $0.id == id } }
+    func list(_ id: UUID) -> BuckList? { state.lists.first { $0.id == id } }
 
-    /// Posts from groups I'm in, newest first.
-    func feedPosts(groupID: UUID? = nil) -> [Post] {
-        let ids = Set(myGroups.map(\.id))
+    /// Seeded catalog plus the user's own items.
+    func challenge(_ id: String) -> Challenge? {
+        state.customChallenges.first { $0.id == id } ?? SeedData.challenge(id)
+    }
+
+    func challenges(in list: BuckList) -> [Challenge] {
+        list.challengeIDs.compactMap { challenge($0) }
+    }
+
+    /// Posts from lists I'm on, newest first.
+    func feedPosts(listID: UUID? = nil) -> [Post] {
+        let ids = Set(myLists.map(\.id))
         return state.posts
-            .filter { ids.contains($0.groupID) && (groupID == nil || $0.groupID == groupID) }
+            .filter { ids.contains($0.listID) && (listID == nil || $0.listID == listID) }
             .sorted { $0.date > $1.date }
     }
 
@@ -122,25 +182,42 @@ final class AppStore {
     }
 
     func isAdded(_ friendID: UUID) -> Bool {
-        crewGroup?.memberIDs.contains(friendID) ?? false
+        summerList?.memberIDs.contains(friendID) ?? false
     }
 
-    func members(of group: BuckGroup) -> [User] {
-        group.memberIDs.compactMap { user($0) }
+    func members(of list: BuckList) -> [User] {
+        list.memberIDs.compactMap { user($0) }
     }
 
-    /// Group members who have done a challenge (me included), for the avatars on each task.
-    func completers(of challengeID: String, in group: BuckGroup) -> [User] {
-        members(of: group).filter { member in
-            if member.id == me.id { return myPost(for: challengeID) != nil }
-            return (SeedData.friendCompletions[challengeID] ?? []).contains(member.id)
-                || state.posts.contains { $0.userID == member.id && $0.challengeID == challengeID }
-        }
+    func hasDone(_ userID: UUID, _ challengeID: String) -> Bool {
+        if userID == me.id { return myPost(for: challengeID) != nil }
+        return (SeedData.friendCompletions[challengeID] ?? []).contains(userID)
+            || state.posts.contains { $0.userID == userID && $0.challengeID == challengeID }
     }
 
-    /// Friends I can tag: my group-mates, or everyone on BuckIt if I haven't added anyone yet.
+    /// List members who have done an item (me included), for the avatars on each task.
+    func completers(of challengeID: String, in list: BuckList) -> [User] {
+        members(of: list).filter { hasDone($0.id, challengeID) }
+    }
+
+    /// Lists both I and this friend are on.
+    func mutualLists(with friendID: UUID) -> [BuckList] {
+        myLists.filter { $0.memberIDs.contains(friendID) }
+    }
+
+    /// The most recent post by someone for an item, if any (used for friend-profile thumbnails).
+    func latestPost(by userID: UUID, for challengeID: String) -> Post? {
+        state.posts.filter { $0.userID == userID && $0.challengeID == challengeID }.max { $0.date < $1.date }
+    }
+
+    /// My lists that don't contain this item yet (for "Add to list").
+    func listsMissing(_ challengeID: String) -> [BuckList] {
+        myLists.filter { !$0.challengeIDs.contains(challengeID) }
+    }
+
+    /// Friends I can tag: people on my lists, or everyone on BuckIt if I haven't added anyone yet.
     var taggableFriends: [User] {
-        let ids = Set(myGroups.flatMap(\.memberIDs)).subtracting([me.id])
+        let ids = Set(myLists.flatMap(\.memberIDs)).subtracting([me.id])
         let mates = state.friends.filter { ids.contains($0.id) }
         return mates.isEmpty ? onBuckItFriends : mates
     }
@@ -151,13 +228,13 @@ final class AppStore {
         update { $0.hasSignedIn = true }
     }
 
-    /// Any code works: it joins Seattle Summer Crew.
+    /// Any code works: it joins the Seattle Summer list.
     func joinWithInvite(_ code: String) {
         update { s in
             s.hasSignedIn = true
-            if let i = s.groups.firstIndex(where: { $0.id == SeedData.crewGroupID }),
-               !s.groups[i].memberIDs.contains(s.user.id) {
-                s.groups[i].memberIDs.append(s.user.id)
+            if let i = s.lists.firstIndex(where: { $0.id == SeedData.summerListID }),
+               !s.lists[i].memberIDs.contains(s.user.id) {
+                s.lists[i].memberIDs.append(s.user.id)
             }
         }
     }
@@ -177,16 +254,16 @@ final class AppStore {
     }
 
     func toggleAdded(_ friendID: UUID) {
-        toggleMember(friendID, in: SeedData.crewGroupID)
+        toggleMember(friendID, in: SeedData.summerListID)
     }
 
-    func toggleMember(_ friendID: UUID, in groupID: UUID) {
+    func toggleMember(_ friendID: UUID, in listID: UUID) {
         update { s in
-            guard let i = s.groups.firstIndex(where: { $0.id == groupID }) else { return }
-            if let j = s.groups[i].memberIDs.firstIndex(of: friendID) {
-                s.groups[i].memberIDs.remove(at: j)
+            guard let i = s.lists.firstIndex(where: { $0.id == listID }) else { return }
+            if let j = s.lists[i].memberIDs.firstIndex(of: friendID) {
+                s.lists[i].memberIDs.remove(at: j)
             } else {
-                s.groups[i].memberIDs.append(friendID)
+                s.lists[i].memberIDs.append(friendID)
             }
         }
     }
@@ -195,32 +272,72 @@ final class AppStore {
         update { $0.invitedIDs.insert(friendID) }
     }
 
-    func finishOnboarding(groupName: String) {
-        let name = groupName.trimmingCharacters(in: .whitespaces)
+    func finishOnboarding(listName: String) {
+        let name = listName.trimmingCharacters(in: .whitespaces)
         update { s in
-            if let i = s.groups.firstIndex(where: { $0.id == SeedData.crewGroupID }), !name.isEmpty {
-                s.groups[i].name = name
+            if let i = s.lists.firstIndex(where: { $0.id == SeedData.summerListID }), !name.isEmpty {
+                s.lists[i].name = name
             }
             s.hasOnboarded = true
         }
         selectedTab = .home
     }
 
+    // MARK: - Lists
+
+    func createList(name: String, emoji: String, memberIDs: [UUID], starter: StarterList) {
+        let list = BuckList(id: UUID(), name: name, emoji: emoji, memberIDs: [me.id] + memberIDs,
+                            challengeIDs: starter.challengeIDs)
+        update { s in
+            s.lists.append(list)
+            s.user.listIDs.append(list.id)
+        }
+    }
+
+    func addItem(_ challengeID: String, to listID: UUID) {
+        update { s in
+            guard let i = s.lists.firstIndex(where: { $0.id == listID }),
+                  !s.lists[i].challengeIDs.contains(challengeID) else { return }
+            s.lists[i].challengeIDs.append(challengeID)
+        }
+    }
+
+    /// Creates a new item of the user's own and adds it to a list.
+    func addCustomItem(title: String, description: String, location: String, commitment: Commitment,
+                       category: ChallengeCategory, to listID: UUID) {
+        let trimmedLocation = location.trimmingCharacters(in: .whitespaces)
+        let item = Challenge(id: "custom-" + UUID().uuidString, title: title.trimmingCharacters(in: .whitespaces),
+                             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                             category: category, location: trimmedLocation.isEmpty ? nil : trimmedLocation,
+                             commitment: commitment, section: "Your additions", isCustom: true)
+        update { s in
+            s.customChallenges.append(item)
+            if let i = s.lists.firstIndex(where: { $0.id == listID }) {
+                s.lists[i].challengeIDs.append(item.id)
+            }
+        }
+    }
+
     // MARK: - Completing challenges
 
-    /// Saves the photos, adds the post to the feed, bumps the bucket and (if verified + sponsored) mints a coupon.
+    func startCapture(_ challenge: Challenge? = nil, listID: UUID? = nil) {
+        activeCapture = CaptureRequest(challenge: challenge, listID: listID)
+    }
+
+    /// Saves the photos, adds the post to the feed, bumps the bucket and (for verified sponsored items) mints a coupon.
     @discardableResult
-    func completeChallenge(_ challenge: Challenge, photo: UIImage, selfie: UIImage?, locationName: String,
+    func completeChallenge(_ challenge: Challenge, listID: UUID?, photo: UIImage, selfie: UIImage?, locationName: String,
                            date: Date, taggedUserIDs: [UUID], caption: String, verified: Bool) -> (post: Post, coupon: Coupon?) {
-        let photoName = PhotoStore.save(photo) ?? PhotoStore.assetPrefix + "demo-hike"
+        let photoName = PhotoStore.save(photo) ?? PhotoStore.assetPrefix + SeedData.demoPhotoName
         let selfieName = selfie.flatMap { PhotoStore.save($0) }
-        let groupID = myGroups.first { $0.challengeIDs.contains(challenge.id) }?.id
-            ?? myGroups.first?.id ?? SeedData.crewGroupID
+        let resolvedListID = listID
+            ?? myLists.first { $0.challengeIDs.contains(challenge.id) }?.id
+            ?? myLists.first?.id ?? SeedData.summerListID
         let trimmedCaption = caption.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let post = Post(id: UUID(), userID: me.id, groupID: groupID, challengeID: challenge.id,
+        let post = Post(id: UUID(), userID: me.id, listID: resolvedListID, challengeID: challenge.id,
                         photoFilename: photoName, selfieFilename: selfieName, locationName: locationName,
-                        date: date, taggedUserIDs: taggedUserIDs, verified: verified, reactions: [:], comments: [],
+                        date: date, taggedUserIDs: taggedUserIDs, reactions: [:], comments: [],
                         caption: trimmedCaption.isEmpty ? nil : trimmedCaption)
 
         var coupon: Coupon?
@@ -237,6 +354,10 @@ final class AppStore {
             s.posts.insert(post, at: 0)
             s.user.completedCount += 1
             if let coupon { s.user.wallet.insert(coupon, at: 0) }
+            // Posting an item that isn't on the list yet adds it.
+            if let i = s.lists.firstIndex(where: { $0.id == resolvedListID }), !s.lists[i].challengeIDs.contains(challenge.id) {
+                s.lists[i].challengeIDs.append(challenge.id)
+            }
         }
         return (post, coupon)
     }
@@ -291,19 +412,47 @@ final class AppStore {
         }
     }
 
-    // MARK: - Groups
+    // MARK: - Bucket
 
-    func createGroup(name: String, emoji: String, memberIDs: [UUID], starter: StarterList) {
-        let group = BuckGroup(id: UUID(), name: name, emoji: emoji, memberIDs: [me.id] + memberIDs,
-                              challengeIDs: starter.challengeIDs,
-                              listName: starter == .blank ? "\(name) list" : starter.title)
-        update { s in
-            s.groups.append(group)
-            s.user.groupIDs.append(group.id)
-        }
+    func waterColor(_ category: ChallengeCategory) -> Color {
+        Color(hex: state.waterColorHex[category.rawValue] ?? category.defaultHex)
     }
 
-    // MARK: - Bucket
+    func setWaterColor(_ color: Color, for category: ChallengeCategory) {
+        update { $0.waterColorHex[category.rawValue] = color.hexString }
+    }
+
+    func resetWaterColors() {
+        update { $0.waterColorHex = [:] }
+    }
+
+    /// My completions, oldest first; each one is a drop in the bucket.
+    private var myDrops: [ChallengeCategory] {
+        state.posts.filter { $0.userID == me.id }
+            .sorted { $0.date < $1.date }
+            .map { challenge($0.challengeID)?.category ?? .outdoors }
+    }
+
+    /// Colored layers for the bucket currently shown (bottom first).
+    var bucketLayers: [Color] {
+        layers(forCount: bucketShownCount, full: bucketLevel >= 0.999)
+    }
+
+    /// Layers after `count` completions; `full` keeps all 10 of a just-filled bucket instead of starting a new one.
+    func layers(forCount count: Int, full: Bool) -> [Color] {
+        let drops = Array(myDrops.prefix(count))
+        let inBucket = full ? SeedData.dropsPerBucket : count % SeedData.dropsPerBucket
+        return drops.suffix(inBucket).map { waterColor($0) }
+    }
+
+    /// Activity types in the current bucket, for the legend.
+    var bucketCategories: [ChallengeCategory] {
+        let drops = Array(myDrops.prefix(bucketShownCount))
+        let inBucket = bucketLevel >= 0.999 ? SeedData.dropsPerBucket : bucketShownCount % SeedData.dropsPerBucket
+        var seen: [ChallengeCategory] = []
+        for c in drops.suffix(inBucket) where !seen.contains(c) { seen.append(c) }
+        return seen
+    }
 
     static func level(for count: Int) -> Double {
         Double(count % SeedData.dropsPerBucket) / Double(SeedData.dropsPerBucket)
@@ -331,17 +480,25 @@ final class AppStore {
         splashCount += 1
 
         if overflows {
-            try? await Task.sleep(for: .seconds(1.6))
-            withAnimation(.easeInOut(duration: 0.9)) { bucketLevel = 0 }
+            // Full bucket: water floods the screen in the bucket's colors, then a fresh empty bucket appears.
+            try? await Task.sleep(for: .seconds(1.3))
+            var colors: [Color] = []
+            for c in bucketCategories { colors.append(waterColor(c)) }
+            withAnimation(.easeIn(duration: 0.2)) { overflowColors = colors.isEmpty ? [Theme.primary] : colors }
+            try? await Task.sleep(for: .seconds(2.6))
+            bucketLevel = 0 // hidden behind the water
+            try? await Task.sleep(for: .seconds(1.4))
+            withAnimation(.easeOut(duration: 0.6)) { overflowColors = nil }
         }
     }
 
     // MARK: - Settings
 
     func setSeedFeed(_ on: Bool) {
+        let demoIDs = Set(SeedData.demoPostIDs)
         update { s in
             s.seedFeedEnabled = on
-            s.posts.removeAll { SeedData.demoPostIDs.contains($0.id) }
+            s.posts.removeAll { demoIDs.contains($0.id) }
             if on { s.posts.append(contentsOf: SeedData.makeDemoPosts()) }
         }
     }
@@ -353,8 +510,10 @@ final class AppStore {
         persist()
         selectedTab = .home
         challengesPath = NavigationPath()
+        profilePath = NavigationPath()
         activeCapture = nil
-        bucketShownCount = 0
-        bucketLevel = 0
+        bucketShownCount = state.user.completedCount
+        bucketLevel = Self.level(for: state.user.completedCount)
+        overflowColors = nil
     }
 }

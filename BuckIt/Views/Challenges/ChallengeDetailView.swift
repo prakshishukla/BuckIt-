@@ -4,6 +4,7 @@ struct ChallengeDetailView: View {
     @Environment(AppStore.self) private var store
     let challenge: Challenge
     @State private var submitTaps = 0
+    @State private var toast: String?
 
     var body: some View {
         let myPost = store.myPost(for: challenge.id)
@@ -12,8 +13,7 @@ struct ChallengeDetailView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                SponsorArt(challenge: challenge)
-                    .frame(height: 220)
+                hero
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(challenge.title)
@@ -30,6 +30,8 @@ struct ChallengeDetailView: View {
                         ChipView.commitment(challenge.commitment, compact: false)
                         ChipView(text: challenge.category.label, symbol: challenge.category.symbol, tint: challenge.category.tint)
                     }
+                    addToList
+                        .padding(.top, 4)
                 }
 
                 Text(challenge.description)
@@ -37,13 +39,12 @@ struct ChallengeDetailView: View {
 
                 if challenge.isSponsored {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Submission criteria").font(.display(.headline))
+                        Text("What to capture").font(.display(.headline))
                         ForEach(challenge.criteria, id: \.self) { criterion in
                             Label {
                                 Text(criterion).font(.app(.subheadline))
                             } icon: {
-                                Image(systemName: myPost != nil ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(myPost != nil ? Theme.teal : .secondary)
+                                Image(systemName: "camera.viewfinder").foregroundStyle(Theme.primary)
                             }
                         }
                     }
@@ -62,18 +63,25 @@ struct ChallengeDetailView: View {
                             .font(.app(.subheadline))
                             .foregroundStyle(.secondary)
                     } else {
-                        HStack(spacing: 10) {
-                            AvatarStack(users: friends, size: 34)
-                            Text(friends.map(\.firstName).formatted(.list(type: .and)) + (friends.count == 1 ? " has" : " have") + " done this")
-                                .font(.app(.subheadline))
-                                .foregroundStyle(.secondary)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 14) {
+                                ForEach(friends) { friend in
+                                    NavigationLink(value: FriendRoute(id: friend.id)) {
+                                        VStack(spacing: 5) {
+                                            AvatarView(user: friend, size: 44)
+                                            Text(friend.firstName).font(.app(.caption, weight: .medium)).foregroundStyle(.primary)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
                 }
 
                 if let myPost {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("You did it \(myPost.date.formatted(.relative(presentation: .named)))", systemImage: "checkmark.seal.fill")
+                        Label("You did it \(myPost.date.formatted(.relative(presentation: .named)))", systemImage: "checkmark.circle.fill")
                             .font(.display(.headline))
                             .foregroundStyle(Theme.teal)
                         DualPhotoView(main: PhotoStore.image(myPost.photoFilename), selfie: PhotoStore.image(myPost.selfieFilename))
@@ -88,9 +96,9 @@ struct ChallengeDetailView: View {
         .safeAreaInset(edge: .bottom) {
             Button {
                 submitTaps += 1
-                store.activeCapture = challenge
+                store.startCapture(challenge)
             } label: {
-                Label(myPost == nil ? "Submit" : "Submit again", systemImage: "camera.fill")
+                Label(myPost == nil ? "Post it" : "Post again", systemImage: "camera.fill")
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 20)
@@ -98,6 +106,50 @@ struct ChallengeDetailView: View {
             .background(.bar)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: submitTaps)
+        .toast($toast)
+    }
+
+    @ViewBuilder
+    private var hero: some View {
+        if let name = challenge.imageName, let image = UIImage(named: name) {
+            Color.clear
+                .frame(height: 240)
+                .overlay { Image(uiImage: image).resizable().scaledToFill() }
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .accessibilityHidden(true)
+        } else {
+            SponsorArt(challenge: challenge)
+                .frame(height: 220)
+        }
+    }
+
+    /// Adds this item to one of my lists that doesn't have it yet.
+    @ViewBuilder
+    private var addToList: some View {
+        let missing = store.listsMissing(challenge.id)
+        if missing.isEmpty {
+            Label("On all your lists", systemImage: "checkmark.circle.fill")
+                .font(.app(.subheadline, weight: .semibold))
+                .foregroundStyle(Theme.teal)
+        } else {
+            Menu {
+                Section("Add to…") {
+                    ForEach(missing) { list in
+                        Button("\(list.emoji) \(list.name)") {
+                            withAnimation { store.addItem(challenge.id, to: list.id) }
+                            toast = "Added to \(list.name)"
+                        }
+                    }
+                }
+            } label: {
+                Label("Add to list", systemImage: "plus.circle.fill")
+                    .font(.app(.subheadline, weight: .semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .foregroundStyle(.white)
+                    .background(Theme.primary, in: Capsule())
+            }
+        }
     }
 }
 

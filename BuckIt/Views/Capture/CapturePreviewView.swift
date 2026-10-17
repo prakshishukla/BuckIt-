@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// Review the shot, edit location / tags / caption, then post.
+/// Review the shot, pick the list + item (when opened from the Home camera), edit location / tags / caption, then post.
 struct CapturePreviewView: View {
     @Environment(AppStore.self) private var store
-    let challenge: Challenge
+    /// Set when the capture started from an item; nil means the user picks one here.
+    let fixedChallenge: Challenge?
     let photo: UIImage
     let selfie: UIImage?
     let capturedAt: Date
+    @Binding var listID: UUID?
+    @Binding var challengeID: String?
     @Binding var locationName: String
     @Binding var tagged: Set<UUID>
     @Binding var caption: String
@@ -20,11 +23,16 @@ struct CapturePreviewView: View {
 
     var body: some View {
         let taggedUsers = store.state.friends.filter { tagged.contains($0.id) }
+        let challenge = fixedChallenge ?? challengeID.flatMap { store.challenge($0) }
 
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     DualPhotoView(main: photo, selfie: selfie)
+
+                    if fixedChallenge == nil {
+                        itemPicker
+                    }
 
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
@@ -53,9 +61,9 @@ struct CapturePreviewView: View {
                         .padding(14)
                         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                    if challenge.isSponsored {
-                        Label("This is a sponsored challenge. Your photo will be checked against \(challenge.criteria.count) criteria to unlock the reward.",
-                              systemImage: "sparkles")
+                    if let challenge, challenge.isSponsored, let reward = challenge.reward {
+                        Label("Sponsored by \(challenge.sponsor?.name ?? "a brand"): posting unlocks \(reward.headline).",
+                              systemImage: "gift.fill")
                             .font(.app(.footnote))
                             .foregroundStyle(.secondary)
                     }
@@ -64,7 +72,7 @@ struct CapturePreviewView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle(challenge.title)
+            .navigationTitle(challenge?.title ?? "New post")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -78,6 +86,7 @@ struct CapturePreviewView: View {
                 } label: {
                     Label("Post", systemImage: "paperplane.fill")
                 }
+                .disabled(challenge == nil)
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
@@ -96,6 +105,81 @@ struct CapturePreviewView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
+    }
+}
+
+extension CapturePreviewView {
+    /// "What did you do?" — choose a list, then an item on it.
+    var itemPicker: some View {
+        let lists = store.myLists
+        let list = listID.flatMap { store.list($0) }
+        let items = list.map { store.challenges(in: $0) } ?? []
+        let open = items.filter { store.myPost(for: $0.id) == nil }
+        let done = items.filter { store.myPost(for: $0.id) != nil }
+        let chosen = challengeID.flatMap { store.challenge($0) }
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("What did you do?").font(.display(.headline)).foregroundStyle(Theme.plum)
+
+            Menu {
+                ForEach(lists) { option in
+                    Button {
+                        listID = option.id
+                        if let id = challengeID, !option.challengeIDs.contains(id) { challengeID = nil }
+                    } label: {
+                        Label("\(option.emoji) \(option.name)", systemImage: listID == option.id ? "checkmark" : "list.bullet")
+                    }
+                }
+            } label: {
+                PickerRow(title: "List", value: list.map { "\($0.emoji) \($0.name)" } ?? "Choose a list", isSet: list != nil)
+            }
+
+            Menu {
+                if !open.isEmpty {
+                    Section("To do") {
+                        ForEach(open) { item in
+                            Button { challengeID = item.id } label: {
+                                Label(item.title, systemImage: challengeID == item.id ? "checkmark" : item.iconSymbol)
+                            }
+                        }
+                    }
+                }
+                if !done.isEmpty {
+                    Section("Done before") {
+                        ForEach(done) { item in
+                            Button { challengeID = item.id } label: {
+                                Label(item.title, systemImage: challengeID == item.id ? "checkmark" : "checkmark.circle")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                PickerRow(title: "Item", value: chosen?.title ?? (list == nil ? "Pick a list first" : "Choose an item"), isSet: chosen != nil)
+            }
+            .disabled(list == nil)
+        }
+        .card(padding: 14)
+    }
+}
+
+private struct PickerRow: View {
+    let title: String
+    let value: String
+    let isSet: Bool
+
+    var body: some View {
+        HStack {
+            Text(title).font(.app(.subheadline, weight: .semibold)).foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.app(.subheadline, weight: isSet ? .semibold : .regular))
+                .foregroundStyle(isSet ? Theme.plum : .secondary)
+                .lineLimit(1)
+            Image(systemName: "chevron.up.chevron.down").font(.app(.caption)).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

@@ -53,13 +53,13 @@ struct SignInView: View {
             .padding(24)
         }
         .onAppear { appeared = true }
-        .alert("Join a group", isPresented: $showCodeAlert) {
+        .alert("Join a list", isPresented: $showCodeAlert) {
             TextField("Invite code", text: $code)
                 .textInputAutocapitalization(.characters)
             Button("Join") { store.joinWithInvite(code) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Enter the code a friend sent you to join \(SeedData.crewGroupName).")
+            Text("Enter the code a friend sent you to join \(SeedData.summerListName).")
         }
     }
 }

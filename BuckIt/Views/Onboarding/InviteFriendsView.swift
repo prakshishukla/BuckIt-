@@ -3,7 +3,7 @@ import SwiftUI
 /// Onboarding step 2: fake contact sync, add friends on BuckIt, invite the rest.
 struct InviteFriendsView: View {
     @Environment(AppStore.self) private var store
-    @State private var groupName = SeedData.crewGroupName
+    @State private var listName = SeedData.summerListName
     @State private var composeFor: User?
     @State private var toast: String?
     @State private var addTaps = 0
@@ -77,14 +77,14 @@ struct InviteFriendsView: View {
                 }
             }
 
-            Section("Name your group") {
-                TextField("Group name", text: $groupName)
+            Section("Name your first list") {
+                TextField("List name", text: $listName)
                     .font(.display(.body, weight: .semibold))
             }
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
-            Button("Done") { store.finishOnboarding(groupName: groupName) }
+            Button("Done") { store.finishOnboarding(listName: listName) }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)

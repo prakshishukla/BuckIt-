@@ -1,21 +1,23 @@
 import SwiftUI
 
 struct ProfileView: View {
-    enum Route: Hashable { case wallet, groups }
+    enum Route: Hashable { case wallet, lists }
 
     @Environment(AppStore.self) private var store
     @State private var editingPreferences = false
-    @State private var creatingGroup = false
+    @State private var creatingList = false
     @State private var confirmReset = false
+    @State private var editingColors = false
 
     var body: some View {
-        NavigationStack {
+        @Bindable var store = store
+        NavigationStack(path: $store.profilePath) {
             ScrollView {
                 VStack(spacing: 18) {
                     header
                     bucketCard
                     walletSection
-                    groupsSection
+                    listsSection
                     settingsSection
                 }
                 .padding(16)
@@ -25,11 +27,14 @@ struct ProfileView: View {
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .wallet: WalletView()
-                case .groups: GroupsView()
+                case .lists: ListsView()
                 }
             }
-            .navigationDestination(for: GroupRoute.self) { route in
-                GroupDetailView(groupID: route.id, mode: .profile)
+            .navigationDestination(for: ListRoute.self) { route in
+                ListDetailView(listID: route.id, mode: .profile)
+            }
+            .navigationDestination(for: FriendRoute.self) { route in
+                FriendProfileView(friendID: route.id)
             }
             .navigationDestination(for: Challenge.self) { challenge in
                 ChallengeDetailView(challenge: challenge)
@@ -39,11 +44,12 @@ struct ProfileView: View {
                     PreferencesView(mode: .edit) { editingPreferences = false }
                 }
             }
-            .sheet(isPresented: $creatingGroup) { CreateGroupView() }
+            .sheet(isPresented: $creatingList) { CreateListView() }
+            .sheet(isPresented: $editingColors) { BucketColorsSheet() }
             .confirmationDialog("Reset the demo?", isPresented: $confirmReset, titleVisibility: .visible) {
                 Button("Reset demo", role: .destructive) { store.resetDemo() }
             } message: {
-                Text("Clears posts, coupons and groups and returns to the sign-in screen.")
+                Text("Clears posts, coupons and lists and returns to the sign-in screen.")
             }
         }
         .onAppear { Task { await store.animateBucketIfNeeded() } }
@@ -96,7 +102,7 @@ struct ProfileView: View {
             }
 
             ZStack(alignment: .top) {
-                WaterBucketView(level: store.bucketLevel, size: 180)
+                WaterBucketView(level: store.bucketLevel, size: 180, layers: store.bucketLayers)
                 SplashView(trigger: store.splashCount)
                     .padding(.top, 36)
             }
@@ -106,10 +112,30 @@ struct ProfileView: View {
                 .font(.display(.title3))
                 .contentTransition(.numericText())
                 .animation(.snappy, value: store.bucketDrops)
-            Text("Every completed challenge adds a drop. Fill it up to start Bucket #\(store.bucketNumber + 1).")
+            if !store.bucketCategories.isEmpty {
+                FlowRow(spacing: 6) {
+                    ForEach(store.bucketCategories) { category in
+                        HStack(spacing: 5) {
+                            Circle().fill(store.waterColor(category)).frame(width: 10, height: 10)
+                            Text(category.label).font(.app(.caption, weight: .medium))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Theme.background, in: Capsule())
+                    }
+                }
+            }
+            Text("Each completed item adds a layer in its activity's color. Fill it up to start Bucket #\(store.bucketNumber + 1).")
                 .font(.app(.caption))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            Button {
+                editingColors = true
+            } label: {
+                Label("Bucket colors", systemImage: "paintpalette.fill")
+                    .font(.app(.subheadline, weight: .semibold))
+            }
+            .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .card()
@@ -145,13 +171,13 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Groups
+    // MARK: - Lists
 
-    private var groupsSection: some View {
+    private var listsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            NavigationLink(value: Route.groups) {
+            NavigationLink(value: Route.lists) {
                 HStack {
-                    Label("My Groups", systemImage: "person.3.fill").font(.display(.title3))
+                    Label("My Lists", systemImage: "list.bullet").font(.display(.title3))
                     Spacer()
                     Image(systemName: "chevron.right").font(.app(.subheadline, weight: .semibold)).foregroundStyle(.tertiary)
                 }
@@ -159,17 +185,28 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
-            ForEach(store.myGroups) { group in
-                NavigationLink(value: GroupRoute(id: group.id)) { GroupRow(group: group) }
+            ForEach(store.activeLists) { list in
+                NavigationLink(value: ListRoute(id: list.id)) { ListRow(list: list) }
                     .buttonStyle(.plain)
             }
 
             Button {
-                creatingGroup = true
+                creatingList = true
             } label: {
-                Label("Create group", systemImage: "plus")
+                Label("Create list", systemImage: "plus")
             }
             .buttonStyle(SecondaryButtonStyle())
+
+            if !store.completedLists.isEmpty {
+                Label("Completed lists", systemImage: "checkmark.seal.fill")
+                    .font(.display(.title3))
+                    .foregroundStyle(Theme.teal)
+                    .padding(.top, 10)
+                ForEach(store.completedLists) { list in
+                    NavigationLink(value: ListRoute(id: list.id)) { ListRow(list: list) }
+                        .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -186,7 +223,7 @@ struct ProfileView: View {
                 .padding(.vertical, 10)
                 Divider()
                 HStack {
-                    Label("Verification", systemImage: "checkmark.seal")
+                    Label("Photo check", systemImage: "sparkles")
                     Spacer()
                     Text(store.verifier.displayName)
                         .font(.app(.caption))

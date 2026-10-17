@@ -3,25 +3,22 @@ import SwiftUI
 struct ChallengeCardView: View {
     @Environment(AppStore.self) private var store
     let challenge: Challenge
-    /// Group members who've done it; shown as avatars on the card.
+    /// List members who've done it; shown as avatars on the card.
     var completers: [User] = []
 
     var body: some View {
         let done = store.myPost(for: challenge.id)
 
         HStack(spacing: 14) {
-            ZStack {
+            Group {
                 if let done, let thumb = PhotoStore.image(done.photoFilename) {
                     Image(uiImage: thumb).resizable().scaledToFill()
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 } else {
-                    Rectangle().fill(challenge.tint.gradient)
-                    Image(systemName: challenge.iconSymbol)
-                        .font(.app(.title2, weight: .bold))
-                        .foregroundStyle(.white)
+                    ChallengeThumb(challenge: challenge, size: 64)
                 }
             }
-            .frame(width: 64, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
                 if let sponsor = challenge.sponsor {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Every hardcoded user, group, challenge and reward in the demo.
+/// Every hardcoded user, list, challenge and reward in the demo.
 enum SeedData {
 
     // MARK: - IDs & constants
@@ -15,20 +15,25 @@ enum SeedData {
     static let taylorID = UUID(uuidString: "B0C1E700-0000-4000-8000-000000000008")!
     static let chrisID = UUID(uuidString: "B0C1E700-0000-4000-8000-000000000009")!
 
-    static let crewGroupID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A1")!
-    static let crewGroupName = "Seattle Summer Crew 🌊"
-    static let seattleListName = "Seattle Bucket List 2026"
+    static let summerListID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A1")!
+    static let trailsListID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A2")!
+    static let waterListID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A3")!
+    static let eventsListID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A4")!
+    static let springListID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A5")!
+    static let summerListName = "Seattle Summer 2026"
 
     static let fallbackLocation = "Discovery Park, Seattle"
     static let inviteURL = URL(string: "https://buckit.app/join/SEATTLE26")!
-    static let inviteMessage = "Join my BuckIt group! https://buckit.app/join/SEATTLE26"
+    static let inviteMessage = "Join my BuckIt list! https://buckit.app/join/SEATTLE26"
     static let dropsPerBucket = 10
+    /// Bundled photo used by "Use demo photo" on the Simulator.
+    static let demoPhotoName = "rattlesnake.jpg"
 
     // MARK: - People
 
     static var me: User {
         User(id: meID, firstName: "Buck", lastName: "It", city: "Seattle", season: .summer, commitment: .medium,
-             groupIDs: [crewGroupID, trailGroupID, islandGroupID], wallet: [], completedCount: 0, isOnBuckIt: true)
+             listIDs: [summerListID, trailsListID, waterListID, eventsListID, springListID], wallet: [], completedCount: 0, isOnBuckIt: true)
     }
 
     static let friends: [User] = [
@@ -44,34 +49,29 @@ enum SeedData {
 
     private static func friend(_ id: UUID, _ first: String, _ last: String, onBuckIt: Bool, phone: String) -> User {
         User(id: id, firstName: first, lastName: last, city: "Seattle", season: .summer, commitment: .medium,
-             groupIDs: onBuckIt ? [crewGroupID] : [], wallet: [], completedCount: onBuckIt ? 3 : 0,
-             isOnBuckIt: onBuckIt, phone: phone)
+             listIDs: [], wallet: [], completedCount: onBuckIt ? 3 : 0, isOnBuckIt: onBuckIt, phone: phone)
     }
 
-    static var crewGroup: BuckGroup {
-        BuckGroup(id: crewGroupID, name: crewGroupName, emoji: "🌊", memberIDs: [meID],
-                  challengeIDs: StarterList.seattle2026.challengeIDs, listName: seattleListName)
+    // MARK: - Lists
+
+    static var seedLists: [BuckList] {
+        [
+            // Friends join this one during onboarding ("Add").
+            BuckList(id: summerListID, name: summerListName, emoji: "🌊", memberIDs: [meID],
+                     challengeIDs: StarterList.seattleSummer.challengeIDs),
+            BuckList(id: trailsListID, name: "PNW Trails", emoji: "🥾", memberIDs: [meID, jordanID, priyaID],
+                     challengeIDs: [patagoniaHikeID, "spon-walgreens-firstaid", "spon-albertsons-snacks", "spon-amazon-gear",
+                                    "sea-rattlesnake", "sea-rainier", "sea-burke-gilman", "sea-green-lake"]),
+            BuckList(id: waterListID, name: "Islands & Water", emoji: "⛴️", memberIDs: [meID, dylanID, mayaID],
+                     challengeIDs: ["spon-costco-bbq", "sea-lake-union", "sea-bainbridge", "sea-alki", "sea-san-juans", "sea-seafair"]),
+            BuckList(id: eventsListID, name: "Eat, Drink & Events", emoji: "🎟️", memberIDs: [meID, mayaID, priyaID, jordanID],
+                     challengeIDs: ["spon-kroger-dinner", "spon-target-fit", "sea-pike-place", "sea-ballard-market", "sea-patio",
+                                    "sea-brewery", "sea-mariners", "sea-concert", "sea-outdoor-movie", "sea-seattle-center"]),
+            // Already finished by Buck (see makeMyPastPosts) so the Completed lists section has something in it.
+            BuckList(id: springListID, name: "Spring Weekend", emoji: "🌸", memberIDs: [meID, mayaID, priyaID],
+                     challengeIDs: ["sea-patio", "sea-ballard-market", "sea-seattle-center"]),
+        ]
     }
-
-    static let trailGroupID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A2")!
-    static let islandGroupID = UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000A3")!
-
-    /// Extra groups so the demo can show multiple lists, member avatars and group filters.
-    static var trailGroup: BuckGroup {
-        BuckGroup(id: trailGroupID, name: "Trail Squad", emoji: "🥾", memberIDs: [meID, jordanID, priyaID],
-                  challengeIDs: [patagoniaHikeID, "spon-walgreens-firstaid", "spon-albertsons-snacks", "spon-amazon-gear",
-                                 "sea-discovery-lighthouse", "sea-arboretum", "sea-rainier", "sea-three-fingers"],
-                  listName: "PNW Trails 2026")
-    }
-
-    static var islandGroup: BuckGroup {
-        BuckGroup(id: islandGroupID, name: "Island Hoppers", emoji: "⛴️", memberIDs: [meID, dylanID, mayaID],
-                  challengeIDs: ["spon-costco-bbq", "sea-water-taxi", "sea-kayak", "sea-alki", "sea-lake-washington",
-                                 "sea-mercer-island", "sea-bike-bainbridge", "sea-san-juans"],
-                  listName: "Islands & Water")
-    }
-
-    static var seedGroups: [BuckGroup] { [crewGroup, trailGroup, islandGroup] }
 
     // MARK: - Sponsors
 
@@ -101,7 +101,7 @@ enum SeedData {
     static let sponsoredChallenges: [Challenge] = [
         Challenge(id: patagoniaHikeID, title: "Hike 5+ miles",
                   description: "Lace up and log at least 5 miles on any trail around Seattle. Bonus points for a summit view.",
-                  category: .hike, location: "Any trail around Seattle", commitment: .medium, sponsor: patagonia,
+                  category: .outdoors, location: "Any trail around Seattle", commitment: .medium, sponsor: patagonia,
                   criteria: ["Photo on a trail or at a summit",
                              "Shows the outdoors: trees, mountains, or trail",
                              "Location + timestamp attached"],
@@ -109,230 +109,291 @@ enum SeedData {
                   symbol: "figure.hiking"),
         Challenge(id: arcteryxCampID, title: "Camp out + post it",
                   description: "Spend a night under the stars — tent, hammock, or car camping all count — and share it on Instagram tagging @arcteryx.",
-                  category: .park, location: "Anywhere under the stars", commitment: .high, sponsor: arcteryx,
+                  category: .bigTrips, location: "Anywhere under the stars", commitment: .high, sponsor: arcteryx,
                   criteria: ["Photo of your campsite or tent",
                              "Screenshot or confirmation of the Instagram post"],
                   reward: reward("5% off a hat", "Valid on one hat at Arc'teryx.", "ARCX")),
         Challenge(id: "spon-visa-adventure", title: "Adventure on your card",
                   description: "Start your adventure the right way — use your Visa credit card for gear, a ferry ticket, or trail snacks.",
-                  category: .finance, location: nil, commitment: .low, sponsor: visa,
+                  category: .smallTrips, location: nil, commitment: .low, sponsor: visa,
                   criteria: ["Photo of the receipt or purchase moment",
                              "Card number hidden"],
                   reward: reward("+15,000 bonus points", "Credited to your linked Visa card (mock Visa-linked flow).", "VISA")),
         Challenge(id: "spon-walmart-picnic", title: "Picnic provisioner",
                   description: "Stock up on picnic supplies and host a group picnic at any park.",
-                  category: .park, location: "Any park", commitment: .medium, sponsor: walmart,
+                  category: .withFriends, location: "Any park", commitment: .medium, sponsor: walmart,
                   criteria: ["Photo of the picnic spread", "At least 2 friends in the shot"],
                   reward: reward("$5 off a $40 grocery order", "Valid on one grocery order of $40+ at Walmart.", "WMT")),
         Challenge(id: "spon-amazon-gear", title: "Gear up for the trail",
                   description: "Grab one new piece of outdoor gear and take it on its first adventure.",
-                  category: .shopping, location: nil, commitment: .medium, sponsor: amazon,
+                  category: .outdoors, location: nil, commitment: .medium, sponsor: amazon,
                   criteria: ["Photo of the gear in use", "Taken outdoors"],
                   reward: reward("10% off one outdoor item", "Valid on one outdoor item on Amazon.", "AMZN")),
         Challenge(id: "spon-costco-bbq", title: "Bulk BBQ at the beach",
                   description: "Throw a beach BBQ big enough for the whole crew.",
-                  category: .water, location: "Any beach", commitment: .medium, sponsor: costco,
+                  category: .withFriends, location: "Any beach", commitment: .medium, sponsor: costco,
                   criteria: ["Grill in the shot", "Group at a beach"],
                   reward: reward("$10 off a $75 purchase", "Valid on one purchase of $75+ at Costco.", "COST"),
                   symbol: "flame.fill"),
         Challenge(id: "spon-kroger-dinner", title: "Farmers-to-table dinner",
                   description: "Cook a meal with local produce and eat it outside. (QFC and Fred Meyer count in Seattle.)",
-                  category: .market, location: nil, commitment: .medium, sponsor: kroger,
+                  category: .food, location: nil, commitment: .medium, sponsor: kroger,
                   criteria: ["Meal made with local produce", "Eaten outdoors"],
                   reward: reward("$5 off fresh produce", "Valid at QFC, Fred Meyer, or any Kroger store.", "KRGR")),
         Challenge(id: "spon-homedepot-campfire", title: "Backyard campfire night",
                   description: "Set up a fire pit or string lights and host a backyard night.",
-                  category: .shopping, location: "Your backyard", commitment: .medium, sponsor: homeDepot,
+                  category: .withFriends, location: "Your backyard", commitment: .medium, sponsor: homeDepot,
                   criteria: ["Fire pit or string lights setup", "Taken at night"],
                   reward: reward("10% off an outdoor living item", "Valid on one outdoor living item at Home Depot.", "HDPT")),
         Challenge(id: "spon-cvs-sunsafe", title: "Sun-safe summer",
                   description: "Pack sunscreen for a full day out and reapply like a pro.",
-                  category: .park, location: nil, commitment: .high, sponsor: cvs,
+                  category: .outdoors, location: nil, commitment: .high, sponsor: cvs,
                   criteria: ["You, outdoors", "SPF visible in the shot"],
                   reward: reward("$3 off sun care", "Valid on any sun care item at CVS.", "CVS")),
         Challenge(id: "spon-target-fit", title: "Summer fit check",
                   description: "Put together a summer adventure outfit and wear it on a challenge.",
-                  category: .shopping, location: nil, commitment: .low, sponsor: target,
+                  category: .entertainment, location: nil, commitment: .low, sponsor: target,
                   criteria: ["Your summer adventure outfit", "At an outdoor spot"],
                   reward: reward("15% off one summer apparel item", "Valid on one summer apparel item at Target.", "TGT")),
         Challenge(id: "spon-walgreens-firstaid", title: "First-aid ready",
                   description: "Assemble a mini first-aid kit for the crew before a hike.",
-                  category: .hike, location: "Any trailhead", commitment: .low, sponsor: walgreens,
+                  category: .outdoors, location: "Any trailhead", commitment: .low, sponsor: walgreens,
                   criteria: ["Mini first-aid kit visible", "At the trailhead"],
                   reward: reward("$5 off first-aid supplies", "Valid on first-aid supplies at Walgreens.", "WAG")),
         Challenge(id: "spon-albertsons-snacks", title: "Trail snack stash",
                   description: "Build the ultimate trail-mix bar for your group hike. (Safeway counts in Seattle.)",
-                  category: .hike, location: nil, commitment: .low, sponsor: albertsons,
+                  category: .food, location: nil, commitment: .low, sponsor: albertsons,
                   criteria: ["Trail snacks visible", "On the trail"],
                   reward: reward("$4 off snacks", "Valid on snacks at Safeway or any Albertsons store.", "SFWY")),
         Challenge(id: "spon-lowes-plant", title: "Plant something",
                   description: "Plant a tree, garden bed, or window box this summer.",
-                  category: .park, location: nil, commitment: .medium, sponsor: lowes,
+                  category: .outdoors, location: nil, commitment: .medium, sponsor: lowes,
                   criteria: ["You with the planting", "Tree, garden bed, or window box"],
                   reward: reward("10% off garden supplies", "Valid on garden supplies at Lowe's.", "LOWE")),
     ]
 
-    // MARK: - Seattle Bucket List 2026
+    // MARK: - Seattle bucket list (each matches a photo in Data/SeedPictures)
 
-    private static let local = "Local"
-    private static let parks = "Parks & Adventures"
+    static let sectionOrder = ["Sponsored picks", "On the Water", "Trails & Parks", "Eat & Drink", "Events & Culture", "Your additions"]
+    private static let water = "On the Water"
+    private static let trails = "Trails & Parks"
+    private static let food = "Eat & Drink"
+    private static let culture = "Events & Culture"
 
     static let seattleChallenges: [Challenge] = [
-        Challenge(id: "sea-golden-gardens", title: "Golden Gardens sunset",
-                  description: "Catch a sunset (and maybe a bonfire) on the sandy beach at Golden Gardens in Ballard.",
-                  category: .water, location: "Golden Gardens Park, Ballard", commitment: .low, section: local, symbol: "sun.horizon.fill"),
-        Challenge(id: "sea-mercer-island", title: "Explore Mercer Island",
-                  description: "Bike or walk the Mercer Island loop and find a swim spot at Luther Burbank Park.",
-                  category: .island, location: "Mercer Island", commitment: .medium, section: local, symbol: "bicycle"),
-        Challenge(id: "sea-arboretum", title: "Washington Park Arboretum",
-                  description: "Wander the trails and Japanese Garden in the Arboretum.",
-                  category: .park, location: "Washington Park Arboretum", commitment: .low, section: local, symbol: "leaf.fill"),
-        Challenge(id: "sea-swim-cut", title: "Swim in the Cut",
-                  description: "Brave the Montlake Cut — jump in where the locals do (safely, with a buddy).",
-                  category: .water, location: "Montlake Cut", commitment: .low, section: local),
-        Challenge(id: "sea-kayak", title: "Kayak from Agua Verde",
-                  description: "Rent a kayak at Agua Verde and paddle Portage Bay, then grab tacos.",
-                  category: .water, location: "Agua Verde Paddle Club, Portage Bay", commitment: .medium, section: local, symbol: "sailboat.fill"),
-        Challenge(id: "sea-water-taxi", title: "Ride the Water Taxi",
-                  description: "Take the West Seattle Water Taxi from downtown to Alki for skyline views.",
-                  category: .ride, location: "Pier 50 → Seacrest Dock", commitment: .low, section: local, symbol: "ferry.fill"),
-        Challenge(id: "sea-bike-bainbridge", title: "Bike Bainbridge",
-                  description: "Ferry to Bainbridge Island with your bike and ride the island.",
-                  category: .island, location: "Bainbridge Island", commitment: .high, section: local, symbol: "bicycle"),
-        Challenge(id: "sea-lake-washington", title: "Swim in Lake Washington",
-                  description: "Take a summer dip at Madison Park or Matthews Beach.",
-                  category: .water, location: "Madison Park or Matthews Beach", commitment: .low, section: local),
-        Challenge(id: "sea-green-lake", title: "Loop Green Lake",
-                  description: "Walk, run, or paddleboard the 2.8-mile loop around Green Lake.",
-                  category: .park, location: "Green Lake Park", commitment: .low, section: local, symbol: "figure.run"),
-        Challenge(id: "sea-fremont-market", title: "Fremont Sunday Market",
-                  description: "Hunt for treasures and eat your way through the Fremont Sunday Market.",
-                  category: .market, location: "Fremont Sunday Market", commitment: .low, section: local),
-
-        Challenge(id: "sea-kite-hill", title: "Fly a kite at Kite Hill",
-                  description: "Get a kite airborne at Gas Works Park's Kite Hill.",
-                  category: .park, location: "Gas Works Park", commitment: .low, section: parks, symbol: "wind"),
-        Challenge(id: "sea-kerry-park", title: "Kerry Park view",
-                  description: "Snap the classic Space Needle + Mt. Rainier skyline shot at Kerry Park.",
-                  category: .park, location: "Kerry Park, Queen Anne", commitment: .low, section: parks, symbol: "building.2.fill"),
-        Challenge(id: "sea-discovery-lighthouse", title: "Discovery Park lighthouse",
-                  description: "Hike the loop trail down to West Point Lighthouse.",
-                  category: .hike, location: "Discovery Park", commitment: .medium, section: parks, symbol: "light.beacon.max.fill"),
-        Challenge(id: "sea-alki", title: "Alki Beach day",
-                  description: "Beach walk, volleyball, or fish and chips at Alki.",
-                  category: .water, location: "Alki Beach, West Seattle", commitment: .low, section: parks, symbol: "beach.umbrella.fill"),
-        Challenge(id: "sea-san-juans", title: "San Juan Islands trip",
-                  description: "Ferry out to the San Juans and try to spot an orca.",
-                  category: .island, location: "San Juan Islands", commitment: .high, section: parks),
-        Challenge(id: "sea-rainier", title: "Mt. Rainier",
-                  description: "Visit Paradise or Sunrise and hike among the wildflowers.",
-                  category: .hike, location: "Mount Rainier National Park", commitment: .high, section: parks, symbol: "mountain.2.fill"),
-        Challenge(id: "sea-three-fingers", title: "Three Fingers hike",
-                  description: "Tackle the challenging Three Fingers trail for the lookout views.",
-                  category: .hike, location: "Three Fingers Lookout", commitment: .high, section: parks),
+        Challenge(id: "sea-lake-union", title: "Kayak or paddleboard on Lake Union",
+                  description: "Rent a kayak or SUP and paddle past the houseboats, seaplanes and the Seattle skyline.",
+                  category: .outdoors, location: "Lake Union", commitment: .medium, section: water,
+                  symbol: "sailboat.fill", imageName: "lakeunion.jpg"),
+        Challenge(id: "sea-bainbridge", title: "Washington State Ferry to Bainbridge Island",
+                  description: "Catch the ferry from Colman Dock, watch the skyline shrink, and explore Winslow on foot.",
+                  category: .smallTrips, location: "Colman Dock → Bainbridge Island", commitment: .medium, section: water,
+                  symbol: "ferry.fill", imageName: "bainbridge.jpg"),
+        Challenge(id: "sea-alki", title: "Alki Beach",
+                  description: "Beach walk, volleyball, or fish and chips with a view of the city from West Seattle.",
+                  category: .outdoors, location: "Alki Beach, West Seattle", commitment: .low, section: water,
+                  symbol: "beach.umbrella.fill", imageName: "alki.jpg"),
+        Challenge(id: "sea-san-juans", title: "San Juan Islands",
+                  description: "Ferry out to the San Juans, explore Friday Harbor, and try to spot an orca.",
+                  category: .bigTrips, location: "San Juan Islands", commitment: .high, section: water,
+                  symbol: "ferry.fill", imageName: "sanjuan.jpg"),
+        Challenge(id: "sea-green-lake", title: "Green Lake",
+                  description: "Walk, run, or bike the 2.8-mile loop around Green Lake, then grab a treat nearby.",
+                  category: .outdoors, location: "Green Lake Park", commitment: .low, section: trails,
+                  symbol: "figure.run", imageName: "greenlake.jpg"),
+        Challenge(id: "sea-rattlesnake", title: "Rattlesnake Ledge or Mount Si",
+                  description: "Hike up to the ledge (4 mi) or tackle Mount Si (8 mi) for big views over the Snoqualmie Valley.",
+                  category: .outdoors, location: "North Bend", commitment: .high, section: trails,
+                  symbol: "figure.hiking", imageName: "rattlesnake.jpg"),
+        Challenge(id: "sea-rainier", title: "Mount Rainier day trip",
+                  description: "Drive to Paradise or Sunrise, hike among the wildflowers, and picnic with the mountain.",
+                  category: .bigTrips, location: "Mount Rainier National Park", commitment: .high, section: trails,
+                  symbol: "mountain.2.fill", imageName: "rainier.jpg"),
+        Challenge(id: "sea-gas-works", title: "Gas Works Park",
+                  description: "Fly a kite on the hill, picnic by the old towers, and watch the sunset over Lake Union.",
+                  category: .withFriends, location: "Gas Works Park, Wallingford", commitment: .low, section: trails,
+                  symbol: "wind", imageName: "gasworks.jpg"),
+        Challenge(id: "sea-burke-gilman", title: "Burke-Gilman Trail",
+                  description: "Bike or walk a stretch of the 20-mile trail from Ballard through Fremont and UW.",
+                  category: .outdoors, location: "Burke-Gilman Trail", commitment: .medium, section: trails,
+                  symbol: "bicycle", imageName: "burkegilman.jpg"),
+        Challenge(id: "sea-pike-place", title: "Pike Place Market",
+                  description: "Watch the fish fly, grab a pastry, and wander the lower levels for hidden shops.",
+                  category: .food, location: "Pike Place Market", commitment: .low, section: food,
+                  symbol: "basket.fill", imageName: "pikeplace.jpg"),
+        Challenge(id: "sea-ballard-market", title: "Ballard Farmers Market",
+                  description: "Sunday on Ballard Ave: local produce, flowers, and way too many samples.",
+                  category: .localEvents, location: "Ballard Ave NW", commitment: .low, section: food,
+                  symbol: "carrot.fill", imageName: "ballardmarket.jpg"),
+        Challenge(id: "sea-patio", title: "Outdoor patio dining",
+                  description: "Find the best sunny patio in the city and make a long lunch of it.",
+                  category: .food, location: "Anywhere sunny", commitment: .low, section: food,
+                  symbol: "fork.knife", imageName: "patio.jpg"),
+        Challenge(id: "sea-brewery", title: "Brewery or distillery tour",
+                  description: "Tour a Ballard brewery or a local distillery and try a flight (21+).",
+                  category: .withFriends, location: "Ballard Brewery District", commitment: .medium, section: food,
+                  symbol: "mug.fill", imageName: "brewery.jpg"),
+        Challenge(id: "sea-mariners", title: "Mariners game at T-Mobile Park",
+                  description: "Garlic fries, a seventh-inning stretch, and maybe a home run.",
+                  category: .entertainment, location: "T-Mobile Park, SoDo", commitment: .medium, section: culture,
+                  symbol: "baseball.fill", imageName: "tmobile.jpg"),
+        Challenge(id: "sea-concert", title: "Outdoor concert",
+                  description: "Catch live music outside: Zoo Tunes, a park show, or a summer festival.",
+                  category: .entertainment, location: "Around Seattle", commitment: .medium, section: culture,
+                  symbol: "music.note", imageName: "concert.jpg"),
+        Challenge(id: "sea-seafair", title: "Seafair events",
+                  description: "Hydroplane races, the Blue Angels, or a Seafair parade. Peak Seattle summer.",
+                  category: .localEvents, location: "Lake Washington", commitment: .high, section: culture,
+                  symbol: "airplane", imageName: "seafair.jpg"),
+        Challenge(id: "sea-outdoor-movie", title: "Free outdoor movie",
+                  description: "Bring a blanket and snacks to a free summer movie in the park.",
+                  category: .entertainment, location: "Seattle parks", commitment: .low, section: culture,
+                  symbol: "film.fill", imageName: "outdoormovie.jpg"),
+        Challenge(id: "sea-seattle-center", title: "Seattle Center (Space Needle, Chihuly, MoPOP)",
+                  description: "Go up the Space Needle, wander Chihuly Garden and Glass, or get lost in MoPOP.",
+                  category: .culture, location: "Seattle Center", commitment: .medium, section: culture,
+                  symbol: "building.2.fill", imageName: "seattlecenter.jpg"),
     ]
 
     static let allChallenges = sponsoredChallenges + seattleChallenges
     private static let challengesByID = Dictionary(uniqueKeysWithValues: allChallenges.map { ($0.id, $0) })
     static func challenge(_ id: String) -> Challenge? { challengesByID[id] }
 
-    /// Which friends "have done" each challenge (shown as avatars on tasks and the detail screen).
+    /// Which friends have done each challenge (avatars on tasks, friend profiles).
     static let friendCompletions: [String: [UUID]] = [
-        patagoniaHikeID: [priyaID, dylanID, jordanID],
+        patagoniaHikeID: [priyaID, jordanID, dylanID],
         arcteryxCampID: [jordanID],
         "spon-walgreens-firstaid": [priyaID],
         "spon-albertsons-snacks": [jordanID, priyaID],
         "spon-costco-bbq": [dylanID, mayaID],
-        "sea-golden-gardens": [mayaID, priyaID, dylanID],
-        "sea-kerry-park": [mayaID],
+        "spon-kroger-dinner": [mayaID],
+        "sea-gas-works": [mayaID, priyaID, dylanID],
         "sea-alki": [dylanID, mayaID],
-        "sea-green-lake": [mayaID, priyaID],
-        "sea-kayak": [jordanID, dylanID],
-        "sea-water-taxi": [mayaID],
-        "sea-discovery-lighthouse": [dylanID, priyaID, jordanID],
-        "sea-rainier": [jordanID],
-        "sea-fremont-market": [mayaID, jordanID],
+        "sea-mariners": [jordanID, mayaID, priyaID],
+        "sea-pike-place": [mayaID, priyaID],
+        "sea-bainbridge": [dylanID, mayaID],
+        "sea-green-lake": [priyaID, mayaID],
+        "sea-lake-union": [mayaID, dylanID, jordanID],
+        "sea-concert": [jordanID, priyaID],
+        "sea-rattlesnake": [jordanID, priyaID],
+        "sea-brewery": [dylanID, jordanID],
+        "sea-seattle-center": [mayaID],
+        "sea-outdoor-movie": [priyaID],
+        "sea-ballard-market": [mayaID],
+        "sea-burke-gilman": [priyaID, jordanID],
     ]
 
     // MARK: - Demo feed (on by default; toggle in Settings)
 
-    static let demoPostIDs: Set<UUID> = [
-        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D1")!,
-        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D2")!,
-        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D3")!,
-        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D4")!,
-        UUID(uuidString: "B0C1E700-0000-4000-8000-0000000000D5")!,
-    ]
+    static let demoPostIDs: [UUID] = (1...9).map { UUID(uuidString: String(format: "B0C1E700-0000-4000-8000-0000000000%02X", 0xD0 + $0))! }
 
     static func makeDemoPosts() -> [Post] {
-        let ids = demoPostIDs.sorted { $0.uuidString < $1.uuidString }
+        let ids = demoPostIDs
         let now = Date()
         func ago(_ hours: Double) -> Date { now.addingTimeInterval(-hours * 3600) }
-        func comment(_ user: UUID, _ text: String, _ hours: Double) -> Comment {
+        func c(_ user: UUID, _ text: String, _ hours: Double) -> Comment {
             Comment(id: UUID(), userID: user, text: text, date: ago(hours))
         }
+        func post(_ i: Int, _ user: UUID, _ list: UUID, _ challenge: String, _ photo: String, _ place: String, _ hours: Double,
+                  tagged: [UUID], reactions: [String: [UUID]], comments: [Comment], caption: String, reward: String? = nil) -> Post {
+            Post(id: ids[i], userID: user, listID: list, challengeID: challenge, photoFilename: PhotoStore.assetPrefix + photo,
+                 selfieFilename: nil, locationName: place, date: ago(hours), taggedUserIDs: tagged, reactions: reactions,
+                 comments: comments, caption: caption, sharedRewardHeadline: reward)
+        }
         return [
-            Post(id: ids[0], userID: mayaID, groupID: crewGroupID, challengeID: "sea-kerry-park",
-                 photoFilename: PhotoStore.assetPrefix + "feed-kerry", selfieFilename: nil,
-                 locationName: "Kerry Park, Seattle", date: ago(2), taggedUserIDs: [priyaID], verified: false,
-                 reactions: ["🔥": [dylanID, priyaID], "🌊": [jordanID]],
-                 comments: [comment(dylanID, "The mountain was OUT 😍", 1.5),
-                            comment(priyaID, "golden hour hits different up there", 1.2)],
-                 caption: "Rainier said hi"),
-            Post(id: ids[1], userID: priyaID, groupID: trailGroupID, challengeID: patagoniaHikeID,
-                 photoFilename: PhotoStore.assetPrefix + "feed-summit", selfieFilename: nil,
-                 locationName: "Rattlesnake Ledge, North Bend", date: ago(4), taggedUserIDs: [jordanID], verified: true,
-                 reactions: ["🔥": [jordanID, mayaID, dylanID], "🙌": [jordanID]],
-                 comments: [comment(jordanID, "my calves are still recovering", 3.5),
-                            comment(mayaID, "wait you got 15% off at Patagonia for this?? signing up", 3)],
-                 caption: "5.6 miles, one very windy summit", sharedRewardHeadline: "15% off one item"),
-            Post(id: ids[2], userID: dylanID, groupID: islandGroupID, challengeID: "sea-alki",
-                 photoFilename: PhotoStore.assetPrefix + "feed-alki", selfieFilename: nil,
-                 locationName: "Alki Beach, West Seattle", date: ago(7), taggedUserIDs: [mayaID], verified: false,
-                 reactions: ["🙌": [mayaID], "😂": [jordanID], "🌊": [priyaID]],
-                 comments: [comment(mayaID, "save me some fish and chips next time", 6)],
+            post(0, mayaID, summerListID, "sea-gas-works", "gasworks.jpg", "Gas Works Park, Seattle", 1.5,
+                 tagged: [priyaID], reactions: ["🔥": [dylanID, priyaID], "🌊": [jordanID]],
+                 comments: [c(dylanID, "kite hill is undefeated", 1.2), c(priyaID, "best sunset this summer", 1.0)],
+                 caption: "Picnic + sunset at the towers"),
+            post(1, priyaID, trailsListID, patagoniaHikeID, "rainier.jpg", "Skyline Trail, Mt. Rainier", 4,
+                 tagged: [jordanID], reactions: ["🔥": [jordanID, mayaID, dylanID], "🙌": [jordanID]],
+                 comments: [c(jordanID, "sandwich summit 🥪", 3.5),
+                            c(mayaID, "wait you got 15% off at Patagonia for this?? signing up", 3)],
+                 caption: "5.5 miles and the best lunch view in the state", reward: "15% off one item"),
+            post(2, dylanID, waterListID, "sea-alki", "alki.jpg", "Alki Beach, West Seattle", 7,
+                 tagged: [mayaID], reactions: ["🙌": [mayaID], "😂": [jordanID], "🌊": [priyaID]],
+                 comments: [c(mayaID, "save me some fish and chips next time", 6)],
                  caption: "Fish & chips + sunset = perfect"),
-            Post(id: ids[3], userID: mayaID, groupID: crewGroupID, challengeID: "sea-green-lake",
-                 photoFilename: PhotoStore.assetPrefix + "feed-greenlake", selfieFilename: nil,
-                 locationName: "Green Lake, Seattle", date: ago(26), taggedUserIDs: [priyaID], verified: false,
-                 reactions: ["🔥": [priyaID, dylanID, jordanID]],
-                 comments: [comment(priyaID, "paddleboard round two next weekend?", 25)],
+            post(3, jordanID, eventsListID, "sea-mariners", "tmobile.jpg", "T-Mobile Park, SoDo", 20,
+                 tagged: [mayaID, priyaID], reactions: ["🔥": [mayaID, priyaID], "😂": [dylanID]],
+                 comments: [c(priyaID, "the garlic fries were the real MVP", 19), c(mayaID, "go M's!!", 18.5)],
+                 caption: "Walk-off energy ⚾️"),
+            post(4, mayaID, eventsListID, "sea-pike-place", "pikeplace.jpg", "Pike Place Market", 28,
+                 tagged: [], reactions: ["🙌": [priyaID, jordanID]],
+                 comments: [c(jordanID, "did you catch a fish", 27)],
+                 caption: "Flowers, pastries, and one very loud fish toss"),
+            post(5, dylanID, waterListID, "sea-bainbridge", "bainbridge.jpg", "Bainbridge Island Ferry", 34,
+                 tagged: [mayaID], reactions: ["🌊": [mayaID, priyaID], "🔥": [jordanID]],
+                 comments: [c(mayaID, "ferry > traffic", 33)],
+                 caption: "Skyline from the top deck"),
+            post(6, priyaID, trailsListID, "sea-green-lake", "greenlake.jpg", "Green Lake, Seattle", 45,
+                 tagged: [], reactions: ["🔥": [mayaID, dylanID, jordanID]],
+                 comments: [c(mayaID, "loop #2 next weekend?", 44)],
                  caption: "2.8 miles done before coffee ☕️"),
-            Post(id: ids[4], userID: jordanID, groupID: islandGroupID, challengeID: "sea-kayak",
-                 photoFilename: PhotoStore.assetPrefix + "feed-kayak", selfieFilename: nil,
-                 locationName: "Portage Bay, Seattle", date: ago(50), taggedUserIDs: [dylanID], verified: false,
-                 reactions: ["🌊": [priyaID, mayaID], "😂": [dylanID]],
-                 comments: [comment(priyaID, "tacos after?? 🌮", 49), comment(dylanID, "already ordered", 48.5)],
-                 caption: "Tacos earned"),
+            post(7, mayaID, waterListID, "sea-lake-union", "lakeunion.jpg", "Lake Union, Seattle", 60,
+                 tagged: [dylanID], reactions: ["🌊": [dylanID, priyaID], "😂": [jordanID]],
+                 comments: [c(dylanID, "we only fell in once", 59), c(priyaID, "iconic", 58)],
+                 caption: "Paddled past the Sleepless in Seattle houseboat"),
+            post(8, jordanID, eventsListID, "sea-concert", "concert.jpg", "Marymoor Park", 80,
+                 tagged: [priyaID], reactions: ["🙌": [priyaID, mayaID]],
+                 comments: [c(priyaID, "still hoarse", 79)],
+                 caption: "Lawn seats were the move"),
         ]
     }
 }
 
-/// Lists a new group can start from.
+extension SeedData {
+    /// Buck's earlier completions: 9 drops of mixed activity types, so the bucket starts colorful at 9/10
+    /// and the demo's Patagonia post overflows it.
+    static let myPastPostIDs: [UUID] = (1...9).map { UUID(uuidString: String(format: "B0C1E700-0000-4000-8000-0000000000%02X", 0xE0 + $0))! }
+
+    static func makeMyPastPosts() -> [Post] {
+        let now = Date()
+        let items: [(String, UUID, String, String, Double, String)] = [
+            ("sea-san-juans", waterListID, "sanjuan.jpg", "Friday Harbor, San Juan Island", 60, "No orcas but the ferry ride was unreal"),
+            ("sea-burke-gilman", trailsListID, "burkegilman.jpg", "Burke-Gilman Trail", 52, "Fremont to UW and back"),
+            ("sea-seafair", waterListID, "seafair.jpg", "Lake Washington", 45, "Blue Angels flyover!!"),
+            ("sea-patio", springListID, "patio.jpg", "Capitol Hill", 38, "Three-hour lunch, zero regrets"),
+            ("sea-ballard-market", springListID, "ballardmarket.jpg", "Ballard Ave NW", 37, "Came for peaches, left with flowers"),
+            ("sea-seattle-center", springListID, "seattlecenter.jpg", "Seattle Center", 36, "Chihuly glass is even better in person"),
+            ("sea-brewery", eventsListID, "brewery.jpg", "Ballard Brewery District", 25, "Flight of four, favorite was the hazy"),
+            ("sea-outdoor-movie", eventsListID, "outdoormovie.jpg", "Magnuson Park", 18, "Blankets + popcorn under the stars"),
+            ("sea-green-lake", trailsListID, "greenlake.jpg", "Green Lake, Seattle", 12, "Sunset loop"),
+        ]
+        return items.enumerated().map { i, item in
+            Post(id: myPastPostIDs[i], userID: meID, listID: item.1, challengeID: item.0,
+                 photoFilename: PhotoStore.assetPrefix + item.2, selfieFilename: nil, locationName: item.3,
+                 date: now.addingTimeInterval(-item.4 * 86400), taggedUserIDs: [], reactions: ["🔥": [mayaID]],
+                 comments: [], caption: item.5)
+        }
+    }
+}
+
+/// Lists a new list can start from.
 enum StarterList: String, CaseIterable, Identifiable {
-    case seattle2026, sponsoredSummer, blank
+    case seattleSummer, sponsoredSummer, blank
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .seattle2026: SeedData.seattleListName
-        case .sponsoredSummer: "Sponsored Summer"
+        case .seattleSummer: "Seattle summer classics"
+        case .sponsoredSummer: "Sponsored challenges"
         case .blank: "Start from scratch"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .seattle2026: "\(SeedData.seattleChallenges.count) Seattle classics + 2 sponsored"
+        case .seattleSummer: "\(SeedData.seattleChallenges.count) Seattle favorites + 2 sponsored"
         case .sponsoredSummer: "Every sponsored challenge"
-        case .blank: "Add challenges later"
+        case .blank: "Add items yourself"
         }
     }
 
     var challengeIDs: [String] {
         switch self {
-        case .seattle2026:
+        case .seattleSummer:
             [SeedData.patagoniaHikeID, SeedData.arcteryxCampID] + SeedData.seattleChallenges.map(\.id)
         case .sponsoredSummer:
             SeedData.sponsoredChallenges.map(\.id)

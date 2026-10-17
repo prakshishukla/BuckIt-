@@ -28,10 +28,14 @@ struct Challenge: Codable, Identifiable, Hashable {
     /// Submission criteria (sponsored only).
     var criteria: [String] = []
     var reward: RewardTemplate? = nil
-    /// Sub-heading inside a group's list, e.g. "Local" or "Parks & Adventures".
+    /// Sub-heading inside a list, e.g. "On the Water" or "Eat & Drink".
     var section: String? = nil
     /// Optional SF Symbol override for the card icon.
     var symbol: String? = nil
+    /// Bundled photo (e.g. "alki.jpg") used as the card thumbnail and detail hero.
+    var imageName: String? = nil
+    /// Added by the user from a list's "+" sheet.
+    var isCustom = false
 
     var isSponsored: Bool { sponsor != nil }
     var iconSymbol: String { symbol ?? sponsor?.symbol ?? category.symbol }
