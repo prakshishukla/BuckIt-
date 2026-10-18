@@ -25,7 +25,7 @@ struct VerificationView: View {
     private var usesGemini: Bool { store.verifier.usesGemini }
 
     private var rows: [CriterionResult] {
-        result?.criteria ?? (challenge.verificationCriteria + ["Taken recently", "Taken near \(challenge.location ?? "Seattle")"])
+        result?.criteria ?? (challenge.verificationCriteria + ["Taken recently", "Taken near \(challenge.nearbyPlaceName)"])
             .map { CriterionResult(criterion: $0, met: true, why: "") }
     }
 

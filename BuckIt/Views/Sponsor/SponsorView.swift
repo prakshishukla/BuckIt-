@@ -421,7 +421,7 @@ private struct CampaignIdeasCard: View {
                     "audience": string (who to target, e.g. "≥50% Outdoors in Ballard"), "why": string (one sentence, cite the data)}]}
         """
         do {
-            let reply = try await client.generate(Reply.self, prompt: prompt, temperature: 0.8)
+            let reply = try await client.generate(Reply.self, prompt: prompt)
             withAnimation { ideas = reply.ideas; fromGemini = true }
         } catch {
             self.error = error.localizedDescription

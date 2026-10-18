@@ -66,7 +66,7 @@ Without a key, each one falls back to clearly labeled offline demo content.
 
 Every post, sponsored or not, goes through `BuckIt/Services/VerificationService.swift`:
 
-1. **Gemini vision**: the JPEG (base64), the item's title, description and place, plus the photo's metadata, go to Gemini's `generateContent` REST endpoint. Gemini answers in strict JSON: `{ "matches": bool, "criteria": [{ "criterion", "met", "why" }], "confidence": 0-1 }`. Sponsored items use the sponsor's criteria; other items are checked for "Photo shows: <item>" and "Looks like a real photo taken there".
+1. **Gemini vision**: the JPEG (base64), the item's title, description and place, plus the photo's metadata, go to Gemini through the Interactions API (`POST /v1beta/interactions`, which new API keys use). Gemini answers in strict JSON: `{ "matches": bool, "criteria": [{ "criterion", "met", "why" }], "confidence": 0-1 }`. Sponsored items use the sponsor's criteria; other items are checked for "Photo shows: <item>" and "Looks like a real photo taken there".
 2. **On-device checks**: **Taken recently** (within 7 days) and **Taken near** the item (within 150 km of Seattle, 400 km for Big trips). They use the photo's own EXIF GPS and timestamp when it has them (library photos), otherwise the phone's location and the capture time. Each row says which source it used.
 
 The screen shows every check with Gemini's reason and the confidence. If a check fails, you can **Retake** or **Post anyway** (unverified posts don't unlock sponsor rewards).
@@ -77,7 +77,7 @@ To enable it:
 cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # gitignored
 # then edit Config/Secrets.xcconfig:
 #   GEMINI_API_KEY = <your key from https://aistudio.google.com/apikey>
-#   GEMINI_MODEL   = gemini-flash-latest     (optional; any vision-capable model id)
+#   GEMINI_MODEL   = gemini-3-flash-preview        (optional; the app falls back to lighter models if busy)
 #   FORCE_VERIFY   = YES                     (optional stage safety net: always pass)
 ```
 
@@ -116,7 +116,7 @@ BuckIt/
 
 Design: Playfair Display for titles and DM Sans for everything else (both SIL Open Font License, see `Licenses/`), with a palette of #05668D, #028090 and #513B56 (primary) plus #B0A3D4 and #F0F3BD (secondary). Colors live in `Assets.xcassets` as `Brand*` color sets with dark-mode variants. Fonts are set up in `Views/Components/Theme.swift`.
 
-Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
+Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
 
 Notes:
 - The category enum is `ChallengeCategory` so it doesn't clash with the Objective-C runtime's `Category`.

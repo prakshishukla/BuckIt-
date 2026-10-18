@@ -93,6 +93,26 @@ final class AppStore {
             completeChallenge(hike, listID: SeedData.trailsListID, photo: photo, selfie: nil, locationName: SeedData.fallbackLocation,
                               date: .now, taggedUserIDs: [], caption: "", verified: true)
         }
+        if args.contains("-geminiSelfTest") {
+            // Exercises the real Gemini paths and prints the results to the console.
+            Task {
+                print("GEMINI TEST · mode: \(verifier.displayName)")
+                if let hike = SeedData.challenge(SeedData.patagoniaHikeID), let photo = UIImage(named: SeedData.demoPhotoName) {
+                    let evidence = PhotoEvidence(location: LocationService.seattle, date: .now,
+                                                 locationSource: "phone location", dateSource: "capture time")
+                    do {
+                        let r = try await verifier.verify(photo: photo, challenge: hike, evidence: evidence)
+                        print("GEMINI TEST · verify: verified=\(r.verified) source=\(r.source) confidence=\(r.confidence)")
+                        r.criteria.forEach { print("GEMINI TEST ·   [\($0.met ? "✓" : "✗")] \($0.criterion): \($0.why)") }
+                    } catch { print("GEMINI TEST · verify error: \(error.localizedDescription)") }
+                }
+                do {
+                    let ideas = try await IdeaGenerator.generate(listName: "PNW Trails", existingTitles: [], city: "Seattle",
+                                                                 season: .summer, mood: "rainy day")
+                    print("GEMINI TEST · ideas fromGemini=\(ideas.fromGemini): " + ideas.ideas.map(\.title).joined(separator: " | "))
+                } catch { print("GEMINI TEST · ideas error: \(error.localizedDescription)") }
+            }
+        }
         if let i = args.firstIndex(of: "-openFriend"), i + 1 < args.count,
            let friend = state.friends.first(where: { $0.firstName.lowercased() == args[i + 1].lowercased() }) {
             selectedTab = .profile

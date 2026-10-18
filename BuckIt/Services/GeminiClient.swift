@@ -1,7 +1,7 @@
 import Foundation
 
-/// Minimal Gemini REST client (`generateContent`) that returns the model's JSON answer.
-/// Used for photo verification, list-item ideas and sponsor campaign ideas.
+/// Minimal Gemini client using the Interactions API (`POST /v1beta/interactions`), which is what new API keys use.
+/// Returns the model's JSON answer decoded as `T`. Used for photo verification, list-item ideas and sponsor campaign ideas.
 struct GeminiClient {
     let apiKey: String
     let model: String
@@ -16,6 +16,8 @@ struct GeminiClient {
         case http(Int, String), emptyResponse, badJSON(String)
         var errorDescription: String? {
             switch self {
+            case .http(429, _): "Gemini's free-tier limit was hit. Wait a minute and try again."
+            case .http(503, _): "Gemini is busy right now. Try again in a moment."
             case .http(let code, let body): "Gemini returned HTTP \(code). \(body.prefix(160))"
             case .emptyResponse: "Gemini returned no answer."
             case .badJSON(let text): "Gemini's answer wasn't valid JSON: \(text.prefix(120))"
@@ -23,31 +25,53 @@ struct GeminiClient {
         }
     }
 
-    private struct GenerateResponse: Decodable {
-        struct Candidate: Decodable {
-            struct Content: Decodable {
-                struct Part: Decodable { var text: String? }
-                var parts: [Part]?
-            }
-            var content: Content?
+    private struct InteractionResponse: Decodable {
+        struct Step: Decodable {
+            struct Content: Decodable { var text: String? }
+            var type: String?
+            var content: [Content]?
         }
-        var candidates: [Candidate]?
+        var steps: [Step]?
     }
 
-    /// Sends a prompt (and optionally a JPEG) and decodes the JSON reply as `T`.
-    func generate<T: Decodable>(_ type: T.Type, prompt: String, jpeg: Data? = nil, temperature: Double = 0) async throws -> T {
-        var parts: [[String: Any]] = [["text": prompt]]
-        if let jpeg {
-            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()] as [String: String]])
+    /// Models to try in order: the configured one first, then fallbacks for when it's overloaded
+    /// (free-tier keys often see 503 "high demand" on the newest models).
+    private var modelChain: [String] {
+        var chain = [model]
+        for fallback in ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"] where !chain.contains(fallback) {
+            chain.append(fallback)
         }
-        let content: [String: Any] = ["role": "user", "parts": parts]
-        let generationConfig: [String: Any] = ["temperature": temperature, "response_mime_type": "application/json"]
-        let body: [String: Any] = ["contents": [content] as [[String: Any]], "generationConfig": generationConfig]
+        return chain
+    }
 
-        let modelPath = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
-        var request = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelPath):generateContent")!)
+    /// Sends a prompt (and optionally a JPEG) and decodes the JSON reply as `T`, falling back across models.
+    func generate<T: Decodable>(_ type: T.Type, prompt: String, jpeg: Data? = nil) async throws -> T {
+        var lastError: Error = GeminiError.emptyResponse
+        for candidate in modelChain {
+            do {
+                return try await generate(type, model: candidate, prompt: prompt, jpeg: jpeg)
+            } catch let error as GeminiError {
+                lastError = error
+                if case .http(let code, _) = error, [404, 429, 500, 503].contains(code) { continue } // busy / unavailable
+                throw error
+            } catch let error as URLError where error.code == .timedOut {
+                lastError = error
+                continue
+            }
+        }
+        throw lastError
+    }
+
+    private func generate<T: Decodable>(_ type: T.Type, model: String, prompt: String, jpeg: Data?) async throws -> T {
+        var input: [[String: Any]] = [["type": "text", "text": prompt]]
+        if let jpeg {
+            input.append(["type": "image", "data": jpeg.base64EncodedString(), "mime_type": "image/jpeg"])
+        }
+        let body: [String: Any] = ["model": model, "input": input]
+
+        var request = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/interactions")!)
         request.httpMethod = "POST"
-        request.timeoutInterval = 25
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -57,14 +81,25 @@ struct GeminiClient {
             throw GeminiError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
 
-        let decoded = try JSONDecoder().decode(GenerateResponse.self, from: data)
-        guard let text = decoded.candidates?.first?.content?.parts?.compactMap(\.text).joined(), !text.isEmpty else {
-            throw GeminiError.emptyResponse
-        }
-        let cleaned = text
+        let decoded = try JSONDecoder().decode(InteractionResponse.self, from: data)
+        let text = (decoded.steps ?? [])
+            .filter { $0.type == "model_output" }
+            .flatMap { $0.content ?? [] }
+            .compactMap(\.text)
+            .joined()
+        guard !text.isEmpty else { throw GeminiError.emptyResponse }
+        return try Self.decodeJSON(T.self, from: text)
+    }
+
+    /// Strips markdown fences / surrounding prose and decodes the first JSON object in the text.
+    static func decodeJSON<T: Decodable>(_ type: T.Type, from text: String) throws -> T {
+        var cleaned = text
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let start = cleaned.firstIndex(of: "{"), let end = cleaned.lastIndex(of: "}"), start < end {
+            cleaned = String(cleaned[start...end])
+        }
         do {
             return try JSONDecoder().decode(T.self, from: Data(cleaned.utf8))
         } catch {
@@ -115,7 +150,7 @@ enum IdeaGenerator {
         {"ideas": [{"title": string (max 6 words), "description": string (one sentence), "location": string,
                     "category": one of [\(types)], "commitment": one of [low, medium, high]}]}
         """
-        let reply = try await client.generate(Reply.self, prompt: prompt, temperature: 0.9)
+        let reply = try await client.generate(Reply.self, prompt: prompt)
         let ideas = reply.ideas.map { idea in
             ItemIdea(title: idea.title, description: idea.description, location: idea.location,
                      category: ChallengeCategory(rawValue: idea.category)

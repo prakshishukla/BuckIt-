@@ -64,6 +64,12 @@ extension Challenge {
         return ["Photo shows: \(title)", "Looks like a real photo taken there, not a screenshot"]
     }
 
+    /// Place name for the "Taken near …" check; vague locations ("Any trail…", "Anywhere…") read as Seattle.
+    var nearbyPlaceName: String {
+        guard let location, !location.lowercased().hasPrefix("any") else { return "Seattle" }
+        return location
+    }
+
     /// How far from Seattle still counts (big trips go further).
     var allowedKilometers: Double { category == .bigTrips ? 400 : 150 }
 }
@@ -88,7 +94,7 @@ enum AppConfig {
 
     static var geminiModel: String {
         let model = value("GEMINI_MODEL")
-        return model.isEmpty ? "gemini-flash-latest" : model
+        return model.isEmpty ? "gemini-3-flash-preview" : model
     }
 
     /// YES = always pass (stage safety net). Default NO: Gemini's verdict decides.
@@ -118,10 +124,10 @@ enum EvidenceChecks {
         if let location = evidence.location {
             let km = location.distance(from: LocationService.seattle) / 1000
             let near = km <= challenge.allowedKilometers
-            results.append(CriterionResult(criterion: "Taken near \(challenge.location ?? "Seattle")", met: near,
+            results.append(CriterionResult(criterion: "Taken near \(challenge.nearbyPlaceName)", met: near,
                                            why: "\(evidence.locationSource.capitalized): \(Int(km.rounded())) km from Seattle"))
         } else {
-            results.append(CriterionResult(criterion: "Taken near \(challenge.location ?? "Seattle")", met: true,
+            results.append(CriterionResult(criterion: "Taken near \(challenge.nearbyPlaceName)", met: true,
                                            why: "No location data, so this check was skipped", skipped: true))
         }
         return results
