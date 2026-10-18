@@ -384,7 +384,7 @@ private struct CampaignIdeasCard: View {
                 .background(Theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             if !ideas.isEmpty {
-                Text(fromGemini ? "Suggested by Gemini" : "Offline demo ideas. Add a Gemini key for live suggestions.")
+                Text(fromGemini ? "Suggested by Gemini" : "Offline demo ideas. Run the BuckIt AI server for live suggestions.")
                     .font(.app(.caption2))
                     .foregroundStyle(.secondary)
             }
@@ -395,34 +395,40 @@ private struct CampaignIdeasCard: View {
 
     private struct Reply: Decodable { var ideas: [CampaignIdea] }
 
+    /// Aggregate numbers only; no individual users are sent.
+    private struct Request: Encodable {
+        var sponsor: String
+        var currentChallenge: String
+        var targetCategory: String
+        var threshold: Double
+        var marketedTo: Int
+        var cityUsers: Int
+        var addedToList: Int
+        var waitingForCoupon: Int
+        var redeemed: Int
+        var neighborhoods: [String]
+    }
+
     private func generate() async {
         loading = true
         error = nil
         defer { loading = false }
-        guard let client = GeminiClient.configured else {
+        guard let client = AIClient.configured else {
             try? await Task.sleep(for: .seconds(1))
             withAnimation { ideas = offlineIdeas; fromGemini = false }
             return
         }
-        let prompt = """
-        You are a growth strategist for BuckIt, a Seattle social bucket-list app where brands sponsor challenges and reward
-        people with coupons when they post a photo of completing them.
-
-        Sponsor: \(campaign.sponsor.name)
-        Current challenge: \(SeedData.challenge(campaign.challengeID)?.title ?? "")
-        Audience rule: at least \(Int(campaign.threshold * 100))% of the person's bucket list is "\(campaign.targetCategory.label)"
-        Marketed to: \(campaign.marketedTo) of \(campaign.cityUsers) Seattle users
-        Funnel: \(campaign.addedToList) added to their list, \(campaign.waitingForCoupon) submitted and waiting, \(campaign.redeemed) redeemed
-        Top neighborhoods: \(campaign.neighborhoods.map(\.0).joined(separator: ", "))
-        Activity types available: \(ChallengeCategory.allCases.map(\.label).joined(separator: ", "))
-
-        Suggest 3 new sponsored challenges for this brand in Seattle. Respond with strict JSON only:
-        {"ideas": [{"title": string (campaign name, max 5 words), "challenge": string (what people do, one sentence),
-                    "audience": string (who to target, e.g. "≥50% Outdoors in Ballard"), "why": string (one sentence, cite the data)}]}
-        """
+        let request = Request(sponsor: campaign.sponsor.name,
+                              currentChallenge: SeedData.challenge(campaign.challengeID)?.title ?? "",
+                              targetCategory: campaign.targetCategory.label, threshold: campaign.threshold,
+                              marketedTo: campaign.marketedTo, cityUsers: campaign.cityUsers,
+                              addedToList: campaign.addedToList, waitingForCoupon: campaign.waitingForCoupon,
+                              redeemed: campaign.redeemed, neighborhoods: campaign.neighborhoods.map(\.0))
         do {
-            let reply = try await client.generate(Reply.self, prompt: prompt)
+            let reply = try await client.post("campaigns", request, as: Reply.self)
             withAnimation { ideas = reply.ideas; fromGemini = true }
+        } catch AIClient.AIError.unreachable {
+            withAnimation { ideas = offlineIdeas; fromGemini = false }
         } catch {
             self.error = error.localizedDescription
         }

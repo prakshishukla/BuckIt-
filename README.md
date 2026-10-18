@@ -12,7 +12,7 @@ Native iOS app in SwiftUI (iOS 17+, Xcode 16+). Hackathon demo build: there's no
 2. Pick the **BuckIt** scheme and an **iPhone 16 Pro** Simulator.
 3. Press **⌘R**.
 
-You don't need packages or accounts. A Gemini key is optional (see below); without one, photo checks run in an offline demo mode.
+You don't need packages or accounts. The AI server is optional (see below); without it, AI features run in a clearly labeled offline demo mode.
 
 To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capabilities**, and choose your (free) Apple ID team. If the bundle ID `com.dubhacks26.buckit` is taken, change it to something unique.
 
@@ -54,43 +54,52 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 
 ## Gemini (Best Use of Gemini)
 
-BuckIt uses Gemini in three places, all through `BuckIt/Services/GeminiClient.swift`:
+BuckIt uses Gemini 3 Flash in three places. **The app never calls Gemini directly.** It calls the BuckIt AI API in [`backend/`](backend/), a small FastAPI service. That service:
+- holds the key
+- keeps the prompts in their own files
+- validates Gemini's JSON
+- applies a confidence threshold
+- writes an audit log
 
-- **Photo verification** for every post (below).
-- **List-item ideas** for people who can't think of what to add (`IdeaGenerator`).
-- **Campaign ideas** for sponsors in Sponsor View.
+Full details, including data handling and human oversight, are in [AI_SYSTEM.md](AI_SYSTEM.md).
 
-Without a key, each one falls back to clearly labeled offline demo content.
+- **Photo verification** for every post (`POST /verify`).
+- **List-item ideas** for people who can't think of what to add (`POST /ideas`).
+- **Campaign ideas** for sponsors in Sponsor View (`POST /campaigns`).
+
+If the server isn't configured or can't be reached, each feature falls back to clearly labeled offline content. The photo check instead shows the error with **Retake** / **Post anyway**.
+
+### Run the AI server
+
+```sh
+cd backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+cp .env.example .env          # set GEMINI_API_KEY (gitignored; never commit it)
+.venv/bin/uvicorn app.main:app --port 8000
+```
+
+Then run the app from Xcode. The Simulator reaches the server at `http://127.0.0.1:8000`, the default `BUCKIT_API_URL` in `Config/BuckIt.xcconfig`. **Profile → Settings → Photo check** shows the active mode ("Gemini via 127.0.0.1", or "Offline demo"). For a stage safety net, set `FORCE_VERIFY = YES` in `Config/Secrets.xcconfig`.
 
 ### Photo verification
 
-Every post, sponsored or not, goes through `BuckIt/Services/VerificationService.swift`:
+1. **Gemini vision**: the app sends the photo to `/verify` with:
+   - the photo, re-encoded at 1024 px, which also strips EXIF
+   - the item and its criteria
+   - when the photo was taken
 
-1. **Gemini vision**: the JPEG (base64), the item's title, description and place, plus the photo's metadata, go to Gemini through the Interactions API (`POST /v1beta/interactions`, which new API keys use). Gemini answers in strict JSON: `{ "matches": bool, "criteria": [{ "criterion", "met", "why" }], "confidence": 0-1 }`. Sponsored items use the sponsor's criteria; other items are checked for "Photo shows: <item>" and "Looks like a real photo taken there".
-2. **On-device checks**: **Taken recently** (within 7 days) and **Taken near** the item (within 150 km of Seattle, 400 km for Big trips). They use the photo's own EXIF GPS and timestamp when it has them (library photos), otherwise the phone's location and the capture time. Each row says which source it used.
+   Sponsored items use the sponsor's criteria. Other items are checked for "Photo shows: <item>" and "Looks like a real photo taken there". Gemini answers in strict JSON. The server counts the photo as verified only if every criterion is met **and** confidence ≥ 0.7.
+2. **On-device checks**: **Taken recently** (within 7 days) and **Taken near** the item (within 150 km of Seattle, 400 km for Big trips). They use the photo's own EXIF GPS and timestamp when it has them (library photos), otherwise the phone's location and the capture time. Coordinates never leave the phone.
 
 The screen shows every check with Gemini's reason and the confidence. If a check fails, you can **Retake** or **Post anyway** (unverified posts don't unlock sponsor rewards).
-
-To enable it:
-
-```sh
-cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # gitignored
-# then edit Config/Secrets.xcconfig:
-#   GEMINI_API_KEY = <your key from https://aistudio.google.com/apikey>
-#   GEMINI_MODEL   = gemini-3-flash-preview        (optional; the app falls back to lighter models if busy)
-#   FORCE_VERIFY   = YES                     (optional stage safety net: always pass)
-```
-
-Clean-build (⇧⌘K) and run. **Profile → Settings → Photo check** shows which mode is active. Without a key, the screen says "Verifying (offline demo)…" and the photo checks pass automatically; the time and location checks still run for real.
-
-> The key travels through `Info.plist` into the app bundle, which is fine for a hackathon. A production app would proxy Gemini calls through a server so the key never ships to clients.
 
 ## Project layout
 
 ```
+AI_SYSTEM.md                how BuckIt uses AI: models, inputs/outputs, oversight, data, audit
+backend/                    BuckIt AI API (FastAPI + google-genai): /verify, /ideas, /campaigns
 BuckIt.xcodeproj            Xcode 16 project (synchronized folder, so new files are picked up automatically)
 Config/
-  BuckIt.xcconfig           GEMINI_* / FORCE_VERIFY defaults; includes Secrets.xcconfig (gitignored) if present
+  BuckIt.xcconfig           BUCKIT_API_URL / FORCE_VERIFY defaults; includes Secrets.xcconfig (gitignored) if present
   Secrets.example.xcconfig  template → copy to Secrets.xcconfig
   Info.plist                privacy usage strings, bundled fonts, config keys
 BuckIt/
@@ -99,7 +108,7 @@ BuckIt/
   Models/                   User, BuckList, Challenge/Sponsor/RewardTemplate, Coupon, Post/Comment, enums
   Data/SeedData.swift       every hardcoded user, list, challenge, reward and demo post
   Data/SeedPictures/        photos for the Seattle items and demo posts
-  Services/                 GeminiClient (+ IdeaGenerator), VerificationService (EXIF evidence), LocationService, CameraService, PhotoStore
+  Services/                 AIClient (BuckIt AI API client + IdeaGenerator), VerificationService (EXIF evidence), LocationService, CameraService, PhotoStore
   Views/
     Onboarding/             SignInView, PreferencesView (+ OnboardingFlow), InviteFriendsView
     Home/                   FeedView, PostCardView (+ DualPhotoView), CommentsSheet
@@ -116,7 +125,7 @@ BuckIt/
 
 Design: Playfair Display for titles and DM Sans for everything else (both SIL Open Font License, see `Licenses/`), with a palette of #05668D, #028090 and #513B56 (primary) plus #B0A3D4 and #F0F3BD (secondary). Colors live in `Assets.xcassets` as `Brand*` color sets with dark-mode variants. Fonts are set up in `Views/Components/Theme.swift`.
 
-Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
+Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation through the AI server and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
 
 Notes:
 - The category enum is `ChallengeCategory` so it doesn't clash with the Objective-C runtime's `Category`.

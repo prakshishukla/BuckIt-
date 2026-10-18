@@ -124,8 +124,8 @@ struct AddItemSheet: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
             } footer: {
-                Text(GeminiClient.configured == nil
-                     ? "Offline demo ideas. Add a Gemini key to generate ideas tailored to this list."
+                Text(AIClient.configured == nil
+                     ? "Offline demo ideas. Run the BuckIt AI server to generate ideas tailored to this list."
                      : "Gemini suggests items based on this list, your city and the season.")
             }
 
