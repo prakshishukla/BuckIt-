@@ -101,9 +101,23 @@ final class AppStore {
         }
         if args.contains("-completeDemo"), let hike = SeedData.challenge(SeedData.patagoniaHikeID),
            let photo = UIImage(named: SeedData.demoPhotoName) {
-            // Posts the Patagonia hike (the 10th drop): the overflow plays right away on whatever tab is showing.
+            // Posts the Patagonia hike (the 9th drop of 10).
             completeChallenge(hike, listID: SeedData.trailsListID, photo: photo, selfie: nil, locationName: SeedData.fallbackLocation,
                               date: .now, taggedUserIDs: [], caption: "", verified: true)
+        }
+        if args.contains("-visaSelfTest"), let visa = SeedData.challenge(SeedData.visaAdventureID),
+           let photo = UIImage(named: SeedData.demoPhotoName(for: visa)) {
+            // Runs the photo check on the Visa item's demo receipt (the hardcoded pass) and prints the result.
+            photo.accessibilityIdentifier = SeedData.demoPhotoName(for: visa)
+            Task {
+                let evidence = PhotoEvidence(location: LocationService.seattle, date: .now,
+                                             locationSource: "phone location", dateSource: "capture time")
+                do {
+                    let r = try await verifier.verify(photo: photo, challenge: visa, evidence: evidence)
+                    print("VISA TEST · verified=\(r.verified) confidence=\(r.confidence)")
+                    r.criteria.forEach { print("VISA TEST ·   [\($0.met ? "✓" : "✗")] \($0.criterion): \($0.why)") }
+                } catch { print("VISA TEST · error: \(error.localizedDescription)") }
+            }
         }
         if args.contains("-geminiSelfTest") {
             // Exercises the real Gemini paths and prints the results to the console.
@@ -348,14 +362,25 @@ final class AppStore {
     /// Creates a new item of the user's own and adds it to a list.
     func addCustomItem(title: String, description: String, location: String, commitment: Commitment,
                        category: ChallengeCategory, to listID: UUID) {
-        let trimmedLocation = location.trimmingCharacters(in: .whitespaces)
-        let item = Challenge(id: "custom-" + UUID().uuidString, title: title.trimmingCharacters(in: .whitespaces),
-                             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-                             category: category, location: trimmedLocation.isEmpty ? nil : trimmedLocation,
-                             commitment: commitment, section: "Your additions", isCustom: true)
+        addCustomChallenge(Self.makeCustomChallenge(title: title, description: description, location: location,
+                                                    commitment: commitment, category: category), to: listID)
+    }
+
+    /// A user-made item that isn't saved yet (previewed on its detail page before "Add to list").
+    static func makeCustomChallenge(title: String, description: String, location: String?, commitment: Commitment,
+                                    category: ChallengeCategory) -> Challenge {
+        let trimmedLocation = (location ?? "").trimmingCharacters(in: .whitespaces)
+        return Challenge(id: "custom-" + UUID().uuidString, title: title.trimmingCharacters(in: .whitespaces),
+                         description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                         category: category, location: trimmedLocation.isEmpty ? nil : trimmedLocation,
+                         commitment: commitment, section: "Your additions", isCustom: true)
+    }
+
+    /// Saves a previewed item (custom or Gemini idea) and puts it on the list. Safe to call twice.
+    func addCustomChallenge(_ item: Challenge, to listID: UUID) {
         update { s in
-            s.customChallenges.append(item)
-            if let i = s.lists.firstIndex(where: { $0.id == listID }) {
+            if !s.customChallenges.contains(where: { $0.id == item.id }) { s.customChallenges.append(item) }
+            if let i = s.lists.firstIndex(where: { $0.id == listID }), !s.lists[i].challengeIDs.contains(item.id) {
                 s.lists[i].challengeIDs.append(item.id)
             }
         }
@@ -370,18 +395,22 @@ final class AppStore {
     /// Saves the photos, adds the post to the feed, bumps the bucket and (for verified sponsored items) mints a coupon.
     @discardableResult
     func completeChallenge(_ challenge: Challenge, listID: UUID?, photo: UIImage, selfie: UIImage?, locationName: String,
-                           date: Date, taggedUserIDs: [UUID], caption: String, verified: Bool) -> (post: Post, coupon: Coupon?) {
-        let photoName = PhotoStore.save(photo) ?? PhotoStore.assetPrefix + SeedData.demoPhotoName
+                           date: Date, taggedUserIDs: [UUID], caption: String, verified: Bool,
+                           coverPhotoNames: [String] = []) -> (post: Post, coupon: Coupon?) {
+        let photoName = PhotoStore.save(photo) ?? PhotoStore.assetPrefix + SeedData.demoPhotoName(for: challenge)
         let selfieName = selfie.flatMap { PhotoStore.save($0) }
         let resolvedListID = listID
             ?? myLists.first { $0.challengeIDs.contains(challenge.id) }?.id
             ?? myLists.first?.id ?? SeedData.summerListID
         let trimmedCaption = caption.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let post = Post(id: UUID(), userID: me.id, listID: resolvedListID, challengeID: challenge.id,
+        var post = Post(id: UUID(), userID: me.id, listID: resolvedListID, challengeID: challenge.id,
                         photoFilename: photoName, selfieFilename: selfieName, locationName: locationName,
                         date: date, taggedUserIDs: taggedUserIDs, reactions: [:], comments: [],
                         caption: trimmedCaption.isEmpty ? nil : trimmedCaption)
+
+        // Sponsored rewards only for posts that passed verification; "Post anyway" never mints a coupon.
+        if !coverPhotoNames.isEmpty { post.coverPhotoFilenames = coverPhotoNames.map { PhotoStore.assetPrefix + $0 } }
 
         var coupon: Coupon?
         if verified, let reward = challenge.reward, let sponsor = challenge.sponsor {

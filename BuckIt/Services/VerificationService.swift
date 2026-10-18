@@ -140,19 +140,50 @@ enum EvidenceChecks {
     }
 }
 
+// MARK: - Hardcoded demo pass
+
+/// The ONE hardcoded pass: Visa's "Adventure on your card" posted with its bundled demo receipt
+/// (visareceipt.jpeg) always verifies, without calling Gemini, so the demo can't fail on stage.
+/// Any other photo on the Visa item, and every other item, goes through the normal check.
+enum HardcodedDemoPass {
+    static func result(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult? {
+        guard challenge.id == SeedData.visaAdventureID,
+              photo.accessibilityIdentifier == SeedData.demoPhotoName(for: challenge) else { return nil }
+        try await Task.sleep(for: .seconds(1.2))
+        let reasons = [
+            "Photo of the receipt or purchase moment": "A store receipt is clearly visible",
+            "Paid with a Visa card": "The receipt shows a Visa credit charge",
+            "Card number hidden": "Card digits on the receipt are blurred out",
+        ]
+        let photoChecks = challenge.verificationCriteria.map {
+            CriterionResult(criterion: $0, met: true, why: reasons[$0] ?? "Matches the demo receipt")
+        }
+        // Real time/location rows, but never blocking for this demo photo.
+        let evidenceChecks = EvidenceChecks.run(evidence, challenge: challenge).map { row in
+            row.met ? row : CriterionResult(criterion: row.criterion, met: true, why: "Demo receipt: check skipped", skipped: true)
+        }
+        return VerificationResult(verified: true, criteria: photoChecks + evidenceChecks, confidence: 1, source: "Demo")
+    }
+}
+
 // MARK: - Mock (no API key)
 
-/// Offline verifier used when no Gemini key is configured. The photo checks always pass; the
-/// on-device time/location checks still run for real.
+/// Offline verifier used when no Gemini key is configured. Regular items pass; sponsored items don't,
+/// because rewards require a real Gemini check. The on-device time/location checks still run for real.
 struct MockVerificationService: VerificationService {
     var displayName: String { "Offline demo (add a Gemini key to enable)" }
     var usesGemini: Bool { false }
 
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult {
+        if let pass = try await HardcodedDemoPass.result(photo: photo, challenge: challenge, evidence: evidence) { return pass }
         try await Task.sleep(for: .seconds(0.9))
-        let photoChecks = challenge.verificationCriteria.map { CriterionResult(criterion: $0, met: true, why: "Offline demo: not checked by Gemini") }
-        return VerificationResult(verified: true, criteria: photoChecks + EvidenceChecks.run(evidence, challenge: challenge),
-                                  confidence: 1, source: "Demo")
+        let sponsored = challenge.isSponsored
+        let photoChecks = challenge.verificationCriteria.map {
+            CriterionResult(criterion: $0, met: !sponsored,
+                            why: sponsored ? "Rewards need a Gemini photo check (offline demo)" : "Offline demo: not checked by Gemini")
+        }
+        return VerificationResult(verified: !sponsored, criteria: photoChecks + EvidenceChecks.run(evidence, challenge: challenge),
+                                  confidence: sponsored ? 0 : 1, source: "Demo")
     }
 }
 
@@ -170,15 +201,17 @@ struct GeminiVerificationService: VerificationService {
 
 
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult {
+        if let pass = try await HardcodedDemoPass.result(photo: photo, challenge: challenge, evidence: evidence) { return pass }
         do {
             let verdict = try await askGemini(photo: photo, challenge: challenge, evidence: evidence)
             let photoChecks = verdict.criteria.map { CriterionResult(criterion: $0.criterion, met: $0.met, why: $0.why) }
             let evidenceChecks = EvidenceChecks.run(evidence, challenge: challenge)
             let passed = verdict.matches && photoChecks.allSatisfy(\.met) && evidenceChecks.allSatisfy(\.met)
-            return VerificationResult(verified: forceVerify || passed, criteria: photoChecks + evidenceChecks,
+            // Force-verify never applies to sponsored items: their rewards require a real pass.
+            return VerificationResult(verified: passed || (forceVerify && !challenge.isSponsored), criteria: photoChecks + evidenceChecks,
                                       confidence: verdict.confidence, source: "Gemini")
         } catch {
-            guard forceVerify, !(error is CancellationError) else { throw error }
+            guard forceVerify, !challenge.isSponsored, !(error is CancellationError) else { throw error }
             print("BuckIt: Gemini verification failed, force-verify fallback: \(error)")
             let checks = challenge.verificationCriteria.map { CriterionResult(criterion: $0, met: true, why: "Gemini unreachable: force-verify fallback") }
             return VerificationResult(verified: true, criteria: checks + EvidenceChecks.run(evidence, challenge: challenge),
@@ -222,6 +255,8 @@ struct GeminiVerificationService: VerificationService {
         Respond with strict JSON only, no markdown:
         {"matches": bool, "criteria": [{"criterion": string, "met": bool, "why": string}], "confidence": number between 0 and 1}
         Use each criterion's text exactly as given, in the same order. Keep each "why" under 12 words.
+        Set "matches" to true exactly when every criterion is met. Don't judge where the photo was taken \
+        (the app checks location separately) or anything the criteria don't ask about.
         """
 
         return try await GeminiClient(apiKey: apiKey, model: model).generate(Verdict.self, prompt: prompt, jpeg: jpeg)

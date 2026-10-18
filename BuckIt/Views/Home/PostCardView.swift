@@ -42,7 +42,8 @@ struct PostCardView: View {
                 .buttonStyle(.plain)
             }
 
-            DualPhotoView(main: PhotoStore.image(post.photoFilename), selfie: PhotoStore.image(post.selfieFilename))
+            PhotoGalleryView(covers: (post.coverPhotoFilenames ?? []).compactMap { PhotoStore.image($0) },
+                             main: PhotoStore.image(post.photoFilename), selfie: PhotoStore.image(post.selfieFilename))
                 .overlay(alignment: .bottomLeading) {
                     Label(post.locationName, systemImage: "mappin.and.ellipse")
                         .font(.app(.caption, weight: .semibold))
@@ -126,6 +127,42 @@ struct PostCardView: View {
 }
 
 /// BeReal-style main photo with a draggable selfie inset. Tap the inset to swap.
+/// Swipeable photos: cover shots first, then the proof photo (with its selfie inset) last.
+/// With no covers it's just a DualPhotoView.
+struct PhotoGalleryView: View {
+    let covers: [UIImage]
+    let main: UIImage?
+    let selfie: UIImage?
+    var cornerRadius: CGFloat = 18
+
+    @State private var page = 0
+
+    var body: some View {
+        if covers.isEmpty {
+            DualPhotoView(main: main, selfie: selfie, cornerRadius: cornerRadius)
+        } else {
+            Color.secondary.opacity(0.12)
+                .aspectRatio(3 / 4, contentMode: .fit)
+                .overlay {
+                    TabView(selection: $page) {
+                        ForEach(Array(covers.enumerated()), id: \.offset) { index, image in
+                            Color.clear
+                                .overlay { Image(uiImage: image).resizable().scaledToFill() }
+                                .clipped()
+                                .tag(index)
+                        }
+                        DualPhotoView(main: main, selfie: selfie, cornerRadius: 0)
+                            .tag(covers.count)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .always))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("\(covers.count + 1) photos. Swipe to see the proof photo.")
+        }
+    }
+}
+
 struct DualPhotoView: View {
     let main: UIImage?
     let selfie: UIImage?

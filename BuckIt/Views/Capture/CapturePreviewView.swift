@@ -6,6 +6,8 @@ struct CapturePreviewView: View {
     /// Set when the capture started from an item; nil means the user picks one here.
     let fixedChallenge: Challenge?
     let photo: UIImage
+    /// Shown before the proof photo (e.g. Visa's airplane tickets); not sent to Gemini.
+    var covers: [UIImage] = []
     let selfie: UIImage?
     let capturedAt: Date
     @Binding var listID: UUID?
@@ -28,7 +30,7 @@ struct CapturePreviewView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    DualPhotoView(main: photo, selfie: selfie)
+                    PhotoGalleryView(covers: covers, main: photo, selfie: selfie)
 
                     if fixedChallenge == nil {
                         itemPicker

@@ -29,6 +29,18 @@ enum SeedData {
     /// Bundled photo used by "Use demo photo" on the Simulator.
     static let demoPhotoName = "rattlesnake.jpg"
 
+    /// Item-specific demo photos for "Use demo photo" (falls back to `demoPhotoName`).
+    static let demoPhotoNames = [visaAdventureID: "visareceipt.jpeg"]
+
+    static let visaAdventureID = "spon-visa-adventure"
+
+    /// Bundled photos shown first (swipe for the proof photo) when an item is posted with its demo photo.
+    static let demoCoverPhotoNames = [visaAdventureID: ["airplanetickets.png"]]
+
+    static func demoPhotoName(for challenge: Challenge?) -> String {
+        challenge.flatMap { demoPhotoNames[$0.id] } ?? demoPhotoName
+    }
+
     // MARK: - People
 
     static var me: User {
@@ -63,7 +75,7 @@ enum SeedData {
                      challengeIDs: [patagoniaHikeID, "spon-walgreens-firstaid", "spon-albertsons-snacks", "spon-amazon-gear",
                                     "sea-rattlesnake", "sea-rainier", "sea-burke-gilman", "sea-green-lake"]),
             BuckList(id: waterListID, name: "Islands & Water", emoji: "⛴️", memberIDs: [meID, dylanID, mayaID],
-                     challengeIDs: ["spon-costco-bbq", "sea-lake-union", "sea-bainbridge", "sea-alki", "sea-san-juans", "sea-seafair"]),
+                     challengeIDs: ["spon-costco-bbq", "sea-lake-union", "sea-bainbridge", "sea-san-juans", "sea-seafair"]),
             BuckList(id: eventsListID, name: "Eat, Drink & Events", emoji: "🎟️", memberIDs: [meID, mayaID, priyaID, jordanID],
                      challengeIDs: ["spon-kroger-dinner", "spon-target-fit", "sea-pike-place", "sea-ballard-market", "sea-patio",
                                     "sea-brewery", "sea-mariners", "sea-concert", "sea-outdoor-movie", "sea-seattle-center"]),
@@ -114,9 +126,10 @@ enum SeedData {
                              "Screenshot or confirmation of the Instagram post"],
                   reward: reward("5% off a hat", "Valid on one hat at Arc'teryx.", "ARCX")),
         Challenge(id: "spon-visa-adventure", title: "Adventure on your card",
-                  description: "Start your adventure the right way — use your Visa credit card for gear, a ferry ticket, or trail snacks.",
+                  description: "Start your adventure the right way: pay with your Visa card for anything you need, from gear and supplies to a ferry ticket or trail snacks, and post the receipt.",
                   category: .smallTrips, location: nil, commitment: .low, sponsor: visa,
                   criteria: ["Photo of the receipt or purchase moment",
+                             "Paid with a Visa card",
                              "Card number hidden"],
                   reward: reward("+15,000 bonus points", "Credited to your linked Visa card (mock Visa-linked flow).", "VISA")),
         Challenge(id: "spon-walmart-picnic", title: "Picnic provisioner",
@@ -256,6 +269,10 @@ enum SeedData {
     ]
 
     static let allChallenges = sponsoredChallenges + seattleChallenges
+
+    /// Alki Beach starts off every list: it's "discovered" through the "Hangout by the beach" ideas demo.
+    static let alkiID = "sea-alki"
+    static var starterSeattleChallenges: [Challenge] { seattleChallenges.filter { $0.id != alkiID } }
     private static let challengesByID = Dictionary(uniqueKeysWithValues: allChallenges.map { ($0.id, $0) })
     static func challenge(_ id: String) -> Challenge? { challengesByID[id] }
 
@@ -345,8 +362,7 @@ enum SeedData {
 }
 
 extension SeedData {
-    /// Buck's earlier completions: 9 drops of mixed activity types, so the bucket starts colorful at 9/10
-    /// and the demo's Patagonia post overflows it.
+    /// Buck's earlier completions: 8 drops of mixed activity types, so the bucket starts colorful at 8/10.
     static let myPastPostIDs: [UUID] = (1...9).map { UUID(uuidString: String(format: "B0C1E700-0000-4000-8000-0000000000%02X", 0xE0 + $0))! }
 
     static func makeMyPastPosts() -> [Post] {
@@ -360,7 +376,6 @@ extension SeedData {
             ("sea-seattle-center", springListID, "seattlecenter.jpg", "Seattle Center", 36, "Chihuly glass is even better in person"),
             ("sea-brewery", eventsListID, "brewery.jpg", "Ballard Brewery District", 25, "Flight of four, favorite was the hazy"),
             ("sea-outdoor-movie", eventsListID, "outdoormovie.jpg", "Magnuson Park", 18, "Blankets + popcorn under the stars"),
-            ("sea-green-lake", trailsListID, "greenlake.jpg", "Green Lake, Seattle", 12, "Sunset loop"),
         ]
         return items.enumerated().map { i, item in
             Post(id: myPastPostIDs[i], userID: meID, listID: item.1, challengeID: item.0,
@@ -387,7 +402,7 @@ enum StarterList: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .seattleSummer: "\(SeedData.seattleChallenges.count) Seattle favorites + 2 sponsored"
+        case .seattleSummer: "\(SeedData.starterSeattleChallenges.count) Seattle favorites + 2 sponsored"
         case .sponsoredSummer: "Every sponsored challenge"
         case .blank: "Add items yourself"
         }
@@ -396,7 +411,7 @@ enum StarterList: String, CaseIterable, Identifiable {
     var challengeIDs: [String] {
         switch self {
         case .seattleSummer:
-            [SeedData.patagoniaHikeID, SeedData.arcteryxCampID] + SeedData.seattleChallenges.map(\.id)
+            [SeedData.patagoniaHikeID, SeedData.arcteryxCampID] + SeedData.starterSeattleChallenges.map(\.id)
         case .sponsoredSummer:
             SeedData.sponsoredChallenges.map(\.id)
         case .blank:

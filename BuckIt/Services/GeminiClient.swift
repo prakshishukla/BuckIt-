@@ -118,6 +118,8 @@ struct ItemIdea: Identifiable, Hashable {
     var location: String?
     var category: ChallengeCategory
     var commitment: Commitment
+    /// Set when the idea is an existing catalog item (e.g. Alki Beach), so it opens with its photo and details.
+    var challengeID: String? = nil
 }
 
 enum IdeaGenerator {
@@ -135,6 +137,10 @@ enum IdeaGenerator {
     /// Ideas for a list. Uses Gemini when a key is set; otherwise returns curated offline ideas.
     static func generate(listName: String, existingTitles: [String], city: String, season: Season,
                          mood: String) async throws -> (ideas: [ItemIdea], fromGemini: Bool) {
+        if let beach = beachIdeas(for: mood) {
+            try await Task.sleep(for: .seconds(1.2))
+            return (beach, false)
+        }
         guard let client = GeminiClient.configured else {
             try await Task.sleep(for: .seconds(1.0))
             return (offlineIdeas(excluding: existingTitles, mood: mood), false)
@@ -158,6 +164,28 @@ enum IdeaGenerator {
                      commitment: Commitment(rawValue: idea.commitment.lowercased()) ?? .medium)
         }
         return (ideas, true)
+    }
+
+    /// Hardcoded demo: "Hangout by the beach" always leads with our Alki Beach item, then other beach ideas.
+    private static func beachIdeas(for mood: String) -> [ItemIdea]? {
+        let normalized = mood.lowercased().filter { $0.isLetter || $0 == " " }
+            .split(separator: " ").joined(separator: " ")
+        guard ["hangout by the beach", "hang out by the beach"].contains(normalized),
+              let alki = SeedData.challenge(SeedData.alkiID) else { return nil }
+        return [
+            ItemIdea(title: alki.title, description: alki.description, location: alki.location,
+                     category: alki.category, commitment: alki.commitment, challengeID: alki.id),
+            ItemIdea(title: "Bonfire at Golden Gardens", description: "Grab a fire ring before sunset and bring s'mores for the crew.",
+                     location: "Golden Gardens Park, Ballard", category: .withFriends, commitment: .low),
+            ItemIdea(title: "Tide pools at Discovery Park", description: "Walk down to West Point at low tide and spot sea stars.",
+                     location: "Discovery Park, Magnolia", category: .outdoors, commitment: .medium),
+            ItemIdea(title: "Swim at Madison Park Beach", description: "Float off the dock on Lake Washington, then grab ice cream nearby.",
+                     location: "Madison Park", category: .outdoors, commitment: .low),
+            ItemIdea(title: "Sunset picnic at Carkeek Park", description: "Pack a blanket and watch the trains roll by the beach.",
+                     location: "Carkeek Park, North Seattle", category: .food, commitment: .low),
+            ItemIdea(title: "Beach day at Richmond Beach", description: "Quiet sand, Olympic Mountain views and room for frisbee.",
+                     location: "Richmond Beach Saltwater Park, Shoreline", category: .withFriends, commitment: .medium),
+        ]
     }
 
     private static let offline: [ItemIdea] = [

@@ -14,6 +14,9 @@ struct Post: Codable, Identifiable {
     var challengeID: String
     /// JPEG filename in Documents/photos, or "asset:<name>" for bundled images.
     var photoFilename: String
+    /// Extra photos shown before the proof photo in a swipeable gallery (e.g. Visa's airplane tickets).
+    /// Only `photoFilename` is checked by Gemini. Same naming as `photoFilename`.
+    var coverPhotoFilenames: [String]? = nil
     var selfieFilename: String?
     var locationName: String
     var date: Date

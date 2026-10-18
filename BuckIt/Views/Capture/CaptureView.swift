@@ -235,11 +235,13 @@ struct CaptureView: View {
     }
 
     private func useDemoPhoto() {
-        guard let hike = UIImage(named: SeedData.demoPhotoName) else { return }
+        let name = SeedData.demoPhotoName(for: challenge)
+        guard let demo = UIImage(named: name) else { return }
+        demo.accessibilityIdentifier = name // lets verification recognize the bundled demo photo
         shutterCount += 1
         withAnimation(.easeOut(duration: 0.08)) { flash = true }
         withAnimation(.easeIn(duration: 0.3).delay(0.08)) { flash = false }
-        onCaptured(hike, UIImage(named: "demo-selfie"), nil)
+        onCaptured(demo, UIImage(named: "demo-selfie"), nil)
     }
 
     private func loadPicked(_ item: PhotosPickerItem) async {

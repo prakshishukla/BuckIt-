@@ -13,6 +13,8 @@ struct VerificationView: View {
     /// Post even though the check failed (no reward for sponsored items).
     var onPostAnyway: () -> Void
     var onRetake: () -> Void
+    /// Leave the capture flow without posting.
+    var onClose: () -> Void
 
     @State private var phase: Phase = .checking
     @State private var result: VerificationResult?
@@ -90,6 +92,21 @@ struct VerificationView: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(Theme.background.ignoresSafeArea())
         .overlay { ConfettiView(trigger: confetti) }
+        .overlay(alignment: .topTrailing) {
+            if phase == .failed {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.app(.headline, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 40, height: 40)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+                .accessibilityLabel("Close without posting")
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
         .sensoryFeedback(.success, trigger: phase == .verified)
         .sensoryFeedback(.error, trigger: phase == .failed)
         .sensoryFeedback(.selection, trigger: revealed)
@@ -110,7 +127,10 @@ struct VerificationView: View {
         case .verified:
             (result?.source == "Gemini" ? "Gemini confirmed your photo." : "Proof accepted.")
                 + (challenge.isSponsored ? " Reward unlocked 🎉" : " Nice one 🎉")
-        case .failed: "Your photo didn't pass every check. Try another shot?"
+        case .failed:
+            challenge.isSponsored
+                ? "Your photo didn't pass every check. Sponsored rewards need a verified photo. Try another shot?"
+                : "Your photo didn't pass every check. Try another shot?"
         }
     }
 

@@ -1,7 +1,15 @@
 import SwiftUI
 
 /// "+" on a list in Profile: add items from the catalog, generate ideas with Gemini, or write your own.
+/// Choosing an item opens its detail page, with "Add to list" in the corner and "Post it" right away.
 struct AddItemSheet: View {
+    /// An item previewed on its detail page before it's added.
+    struct Preview: Hashable {
+        var challenge: Challenge
+        /// true = new custom/Gemini item, saved only when added or posted
+        var isDraft: Bool
+    }
+
     enum Source: String, CaseIterable, Identifiable {
         case catalog = "Browse"
         case ideas = "✨ Ideas"
@@ -13,6 +21,7 @@ struct AddItemSheet: View {
     @Environment(\.dismiss) private var dismiss
     let listID: UUID
 
+    @State private var path: [Preview] = []
     @State private var source: Source = .catalog
     @State private var search = ""
     @State private var title = ""
@@ -25,13 +34,15 @@ struct AddItemSheet: View {
     // Gemini ideas
     @State private var mood = ""
     @State private var ideas: [ItemIdea] = []
-    @State private var picked: Set<UUID> = []
+    /// One unsaved item per idea, so reopening an idea (or adding it) never makes a duplicate.
+    @State private var drafts: [UUID: Challenge] = [:]
+    @State private var customDraft: Challenge?
     @State private var generating = false
     @State private var ideasFromGemini = false
     @State private var ideaError: String?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 Picker("Source", selection: $source) {
                     ForEach(Source.allCases) { Text($0.rawValue).tag($0) }
@@ -54,6 +65,31 @@ struct AddItemSheet: View {
             }
             .toast($toast)
             .sensoryFeedback(.success, trigger: adds)
+            .navigationDestination(for: Preview.self) { preview in
+                ChallengeDetailView(challenge: preview.challenge,
+                                    pending: .init(listID: listID, isDraft: preview.isDraft,
+                                                   onAdded: added, onPost: post))
+            }
+            .navigationDestination(for: FriendRoute.self) { route in
+                FriendProfileView(friendID: route.id)
+            }
+        }
+    }
+
+    private func added(_ challenge: Challenge) {
+        adds += 1
+        if challenge.id == customDraft?.id {
+            title = ""; details = ""; location = ""
+            customDraft = nil
+        }
+    }
+
+    /// "Post it" on a previewed item: it's already been added; close the sheet, then open the camera.
+    private func post(_ challenge: Challenge) {
+        dismiss()
+        Task {
+            try? await Task.sleep(for: .seconds(0.45))
+            store.startCapture(challenge, listID: listID)
         }
     }
 
@@ -76,26 +112,18 @@ struct AddItemSheet: View {
                 if !items.isEmpty {
                     Section(section) {
                         ForEach(items) { item in
-                            HStack(spacing: 12) {
-                                ChallengeThumb(challenge: item, size: 44)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.title).font(.app(.subheadline, weight: .semibold)).lineLimit(2)
-                                    if let sponsor = item.sponsor {
-                                        Text("Sponsored · \(sponsor.name)").font(.app(.caption)).foregroundStyle(.secondary)
-                                    } else if let location = item.location {
-                                        Text(location).font(.app(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                            NavigationLink(value: Preview(challenge: item, isDraft: false)) {
+                                HStack(spacing: 12) {
+                                    ChallengeThumb(challenge: item, size: 44)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.title).font(.app(.subheadline, weight: .semibold)).lineLimit(2)
+                                        if let sponsor = item.sponsor {
+                                            Text("Sponsored · \(sponsor.name)").font(.app(.caption)).foregroundStyle(.secondary)
+                                        } else if let location = item.location {
+                                            Text(location).font(.app(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                                        }
                                     }
                                 }
-                                Spacer()
-                                Button {
-                                    withAnimation(.snappy) { store.addItem(item.id, to: listID) }
-                                    adds += 1
-                                    toast = "Added “\(item.title)”"
-                                } label: {
-                                    Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(Theme.primary)
-                                }
-                                .buttonStyle(.borderless)
-                                .accessibilityLabel("Add \(item.title)")
                             }
                         }
                     }
@@ -144,14 +172,13 @@ struct AddItemSheet: View {
             if !ideas.isEmpty {
                 Section {
                     ForEach(ideas) { idea in
-                        let selected = picked.contains(idea.id)
-                        Button {
-                            if selected { picked.remove(idea.id) } else { picked.insert(idea.id) }
-                        } label: {
+                        let preview = preview(for: idea)
+                        let onList = store.list(listID)?.challengeIDs.contains(preview.challenge.id) ?? false
+                        Button { path.append(preview) } label: {
                             HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                    .font(.title3)
-                                    .foregroundStyle(selected ? Theme.primary : .secondary)
+                                if let id = idea.challengeID, let existing = store.challenge(id) {
+                                    ChallengeThumb(challenge: existing, size: 44)
+                                }
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(idea.title).font(.app(.subheadline, weight: .semibold)).foregroundStyle(.primary)
                                     Text(idea.description).font(.app(.caption)).foregroundStyle(.secondary)
@@ -160,38 +187,33 @@ struct AddItemSheet: View {
                                         ChipView.commitment(idea.commitment)
                                     }
                                 }
+                                Spacer(minLength: 0)
+                                Image(systemName: onList ? "checkmark.circle.fill" : "chevron.right")
+                                    .font(onList ? .title3 : .app(.caption, weight: .semibold))
+                                    .foregroundStyle(onList ? AnyShapeStyle(Theme.teal) : AnyShapeStyle(.tertiary))
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
                 } header: {
                     Label(ideasFromGemini ? "Suggested by Gemini" : "Suggestions", systemImage: "sparkles")
                 } footer: {
-                    Text("Tap the ones you want, then add them.")
+                    Text("Tap an idea to see it, add it to this list, or post it right away.")
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if !picked.isEmpty {
-                Button {
-                    let chosen = ideas.filter { picked.contains($0.id) }
-                    for idea in chosen {
-                        store.addCustomItem(title: idea.title, description: idea.description, location: idea.location ?? "",
-                                            commitment: idea.commitment, category: idea.category, to: listID)
-                    }
-                    withAnimation { ideas.removeAll { picked.contains($0.id) } }
-                    picked = []
-                    adds += 1
-                    toast = "Added \(chosen.count) \(chosen.count == 1 ? "item" : "items")"
-                } label: {
-                    Label("Add \(picked.count) \(picked.count == 1 ? "item" : "items")", systemImage: "plus")
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(.bar)
-            }
+    }
+
+    /// The item an idea opens: the catalog item it points to, or one stable unsaved draft per idea.
+    private func preview(for idea: ItemIdea) -> Preview {
+        if let id = idea.challengeID, let existing = store.challenge(id) {
+            return Preview(challenge: existing, isDraft: false)
         }
+        let draft = drafts[idea.id] ?? AppStore.makeCustomChallenge(title: idea.title, description: idea.description,
+                                                                    location: idea.location, commitment: idea.commitment,
+                                                                    category: idea.category)
+        return Preview(challenge: draft, isDraft: true)
     }
 
     private func generate() async {
@@ -204,7 +226,12 @@ struct AddItemSheet: View {
                                                           existingTitles: existing, city: store.me.city,
                                                           season: store.me.season, mood: mood)
             withAnimation {
-                ideas = result.ideas + ideas.filter { picked.contains($0.id) }
+                ideas = result.ideas
+                for idea in result.ideas where idea.challengeID == nil {
+                    drafts[idea.id] = AppStore.makeCustomChallenge(title: idea.title, description: idea.description,
+                                                                   location: idea.location, commitment: idea.commitment,
+                                                                   category: idea.category)
+                }
                 ideasFromGemini = result.fromGemini
             }
         } catch {
@@ -237,13 +264,18 @@ struct AddItemSheet: View {
             }
             Section {
                 Button {
-                    store.addCustomItem(title: title, description: details, location: location,
-                                        commitment: commitment, category: category, to: listID)
-                    adds += 1
-                    toast = "Added “\(title.trimmingCharacters(in: .whitespaces))”"
-                    title = ""; details = ""; location = ""
+                    let draft = AppStore.makeCustomChallenge(title: title, description: details, location: location,
+                                                             commitment: commitment, category: category)
+                    // Reuse the draft if nothing changed, so going back and forth never duplicates it.
+                    if let existing = customDraft, existing.title == draft.title, existing.description == draft.description,
+                       existing.location == draft.location, existing.commitment == draft.commitment, existing.category == draft.category {
+                        path.append(Preview(challenge: existing, isDraft: true))
+                    } else {
+                        customDraft = draft
+                        path.append(Preview(challenge: draft, isDraft: true))
+                    }
                 } label: {
-                    Label("Add to list", systemImage: "plus")
+                    Label("Next", systemImage: "arrow.right")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(PrimaryButtonStyle())

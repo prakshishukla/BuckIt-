@@ -29,7 +29,7 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 | 7 | **Use demo photo** (Simulator) or snap a photo, then a selfie (phone). Tag a friend → **Post** | The location and time chips fill in automatically. |
 | 8 | Verification | "Verifying with Gemini…": Gemini checks the photo against the item, and the app checks when and where it was taken. Each check ticks off with Gemini's reason, then a green check with confetti. |
 | 9 | Coupon reveal | The card flips to "15% off one item" at Patagonia, then "Saved to Wallet". Tap **Done**. |
-| 10 | Home → **Challenges** → **Profile** | The post is at the top of the feed, and the Patagonia card has dropped off the Sponsored list. The moment the post goes up, the bucket (seeded at 9/10, one colored layer per activity type) gets its 10th layer and **overflows** on whatever screen you're on: water in the bucket's colors floods the screen with confetti, and Profile shows a new empty Bucket #2. |
+| 10 | Home → **Challenges** → **Profile** | The post is at the top of the feed, and the Patagonia card has dropped off the Sponsored list. The bucket (seeded at 8/10, one colored layer per activity type) gets its 9th layer. Post one more item to fill it: it **overflows** on whatever screen you're on, with water in the bucket's colors flooding the screen with confetti, and Profile shows a new empty Bucket #2. |
 | 11 | **Profile → Wallet** | The coupon shows its code (e.g. `PATA-7XK2QM`), a QR code and its expiry. **Mark as used** asks what you bought and can share it on your post. |
 | 12 | **Sponsor View** tab | Patagonia's dashboard: who it targets (≥60% Outdoors), how many people that reaches, and the funnel. Your own steps from the demo count live. The purchase you just shared is at the top of "What people bought". |
 
@@ -48,7 +48,8 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 - **Friend profiles** (tap a name on a post, a list member, or a friend on a challenge) show only the lists you share, up to three things they've done on each, and **See all** to open the list.
 - **Activity types** (Outdoors, Big trips, Small trips, Food, Local events, Culture, Entertainment, With friends) are the same on every item and in every filter. Each one has a water color; change them under **Profile → Bucket colors**.
 - **Completed lists:** once you've done everything on a list, it disappears from Challenges and moves to **Completed lists** at the bottom of Profile → My Lists. You can still open it to follow everyone's progress (each member shows "done/total"). Spring Weekend 🌸 is seeded as completed.
-- **✨ Ideas** (Profile → a list → **+** → ✨ Ideas): describe a mood ("rainy day", "cheap eats"), and Gemini suggests items for that list. Tick the ones you want and add them.
+- **Adding items** (Profile → a list → **+**): picking anything from **Browse**, **✨ Ideas** or **Your own** opens its detail page, with **Add to list** in the top corner and **Post it** to post a photo right away (posting adds it too).
+- **✨ Ideas**: describe a mood ("rainy day", "cheap eats"), and Gemini suggests items for that list; open one at a time. Demo: typing **Hangout by the beach** always puts **Alki Beach** (with its photo) first, followed by other beach ideas. Alki starts off every list for this reason.
 - **Sponsor View** (demo-only tab): pick a sponsor to see its audience rule, a slider that previews reach at other thresholds, which real people qualify, the funnel (added to list → submitted, waiting to use the coupon → redeemed and used), what people bought, top neighborhoods, and **Suggest campaigns** (Gemini proposes the next sponsored challenge from the funnel data).
 - To start from an empty feed instead, turn off **Profile → Settings → Seed demo feed**.
 
@@ -69,7 +70,7 @@ Every post, sponsored or not, goes through `BuckIt/Services/VerificationService.
 1. **Gemini vision**: the JPEG (base64), the item's title, description and place, plus the photo's metadata, go to Gemini through the Interactions API (`POST /v1beta/interactions`, which new API keys use). Gemini answers in strict JSON: `{ "matches": bool, "criteria": [{ "criterion", "met", "why" }], "confidence": 0-1 }`. Sponsored items use the sponsor's criteria; other items are checked for "Photo shows: <item>" and "Looks like a real photo taken there".
 2. **On-device checks**: **Taken recently** (within 7 days) and **Taken near** the item (within 150 km of Seattle, 400 km for Big trips). They use the photo's own EXIF GPS and timestamp when it has them (library photos), otherwise the phone's location and the capture time. Each row says which source it used.
 
-The screen shows every check with Gemini's reason and the confidence. If a check fails, you can **Retake** or **Post anyway** (unverified posts don't unlock sponsor rewards).
+The screen shows every check with Gemini's reason and the confidence. If a check fails, you can **Retake photo**, **Post anyway**, or tap **✕** (top right) to leave without posting. **Sponsored rewards require a passed Gemini check:** posting anyway never unlocks a coupon, `FORCE_VERIFY` doesn't apply to sponsored items, and the offline demo mode (no key) never passes them.
 
 To enable it:
 
@@ -78,7 +79,7 @@ cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # gitignored
 # then edit Config/Secrets.xcconfig:
 #   GEMINI_API_KEY = <your key from https://aistudio.google.com/apikey>
 #   GEMINI_MODEL   = gemini-3-flash-preview        (optional; the app falls back to lighter models if busy)
-#   FORCE_VERIFY   = YES                     (optional stage safety net: always pass)
+#   FORCE_VERIFY   = YES                     (optional stage safety net: always pass, except sponsored items)
 ```
 
 Clean-build (⇧⌘K) and run. **Profile → Settings → Photo check** shows which mode is active. Without a key, the screen says "Verifying (offline demo)…" and the photo checks pass automatically; the time and location checks still run for real.
@@ -120,10 +121,10 @@ BuckIt/
 
 Design: Playfair Display for titles and DM Sans for everything else (both SIL Open Font License, see `Licenses/`), with a palette of #05668D, #028090 and #513B56 (primary) plus #B0A3D4 and #F0F3BD (secondary). Colors live in `Assets.xcassets` as `Brand*` color sets with dark-mode variants. Fonts are set up in `Views/Components/Theme.swift`.
 
-Debug builds accept launch arguments for jumping past onboarding: `-resetApp` (wipes everything and starts at the create-account screen; add `-signedIn` to land on the privacy agreement), `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
+Debug builds accept launch arguments for jumping past onboarding: `-resetApp` (wipes everything and starts at the create-account screen; add `-signedIn` to land on the privacy agreement), `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), `-visaSelfTest` (runs the photo check on the Visa demo receipt and prints the result), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
 
 Notes:
 - The category enum is `ChallengeCategory` so it doesn't clash with the Objective-C runtime's `Category`.
 - State is saved as JSON in the app's Documents directory (`buckit-demo-state-v4.json`), with photos under `Documents/photos/`. It survives relaunches. **Profile → Settings → Reset app & start over** clears both and returns to the create-account screen.
-- Item and feed photos come from `BuckIt/Data/SeedPictures/` (referenced by filename in `SeedData.swift`). On the Simulator, **Use demo photo** posts `rattlesnake.jpg`.
+- Item and feed photos come from `BuckIt/Data/SeedPictures/` (referenced by filename in `SeedData.swift`). On the Simulator, **Use demo photo** posts `rattlesnake.jpg`, or `visareceipt.jpeg` for Visa's "Adventure on your card" (set per item in `SeedData.demoPhotoNames`). That one combination, Visa + its demo receipt, is a hardcoded pass (`HardcodedDemoPass` in `VerificationService.swift`): it skips Gemini so the demo can't fail. Any other photo on the Visa item is checked normally. The Visa post also leads with `airplanetickets.png` (swipe for the receipt); cover photos are set in `SeedData.demoCoverPhotoNames` and are never sent to Gemini.
 - Sponsor badges use SF Symbols and brand colors. Each `Sponsor` has a `logoAsset` slot: add an image with that name to the asset catalog, only with the brand's permission, and the badge will use it. Every coupon carries a **DEMO** tag.

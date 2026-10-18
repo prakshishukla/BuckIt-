@@ -7,8 +7,8 @@ GEMINI_API_KEY =
 GEMINI_MODEL = gemini-3-flash-preview
 // Cloudforce × DubHacks: YES = show the "Need more ideas?" link to our Side Kick on UW Purple.
 // NO = remove every mention of UW Purple from the app.
-CLOUDFORCE = YES
-// YES = always pass verification (stage safety net). NO = Gemini's verdict decides.
+CLOUDFORCE = NO
+// YES = always pass verification, except sponsored items (rewards need a real pass). NO = Gemini's verdict decides.
 FORCE_VERIFY = NO
 
 #include? "Secrets.xcconfig"

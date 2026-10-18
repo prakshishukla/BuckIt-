@@ -1,10 +1,28 @@
 import SwiftUI
 
 struct ChallengeDetailView: View {
+    /// Opened from a list's "+" sheet: the item isn't on that list yet (or isn't saved at all, for ideas
+    /// and custom items). Shows "Add to list" in the top corner; "Post it" adds it first.
+    struct Pending {
+        var listID: UUID
+        /// true = a new custom/Gemini item that's saved only when added or posted
+        var isDraft: Bool
+        var onAdded: (Challenge) -> Void = { _ in }
+        /// Called instead of starting the camera directly (the sheet has to close first).
+        var onPost: (Challenge) -> Void
+    }
+
     @Environment(AppStore.self) private var store
     let challenge: Challenge
+    var pending: Pending? = nil
     @State private var submitTaps = 0
+    @State private var addTaps = 0
     @State private var toast: String?
+
+    private var isOnPendingList: Bool {
+        guard let pending else { return false }
+        return store.list(pending.listID)?.challengeIDs.contains(challenge.id) ?? false
+    }
 
     var body: some View {
         let myPost = store.myPost(for: challenge.id)
@@ -30,8 +48,10 @@ struct ChallengeDetailView: View {
                         ChipView.commitment(challenge.commitment, compact: false)
                         ChipView(text: challenge.category.label, symbol: challenge.category.symbol, tint: challenge.category.tint)
                     }
-                    addToList
-                        .padding(.top, 4)
+                    if pending == nil {
+                        addToList
+                            .padding(.top, 4)
+                    }
                 }
 
                 Text(challenge.description)
@@ -84,7 +104,8 @@ struct ChallengeDetailView: View {
                         Label("You did it \(myPost.date.formatted(.relative(presentation: .named)))", systemImage: "checkmark.circle.fill")
                             .font(.display(.headline))
                             .foregroundStyle(Theme.teal)
-                        DualPhotoView(main: PhotoStore.image(myPost.photoFilename), selfie: PhotoStore.image(myPost.selfieFilename))
+                        PhotoGalleryView(covers: (myPost.coverPhotoFilenames ?? []).compactMap { PhotoStore.image($0) },
+                                         main: PhotoStore.image(myPost.photoFilename), selfie: PhotoStore.image(myPost.selfieFilename))
                             .frame(maxWidth: 220)
                     }
                 }
@@ -96,7 +117,12 @@ struct ChallengeDetailView: View {
         .safeAreaInset(edge: .bottom) {
             Button {
                 submitTaps += 1
-                store.startCapture(challenge)
+                if let pending {
+                    addToPendingList()
+                    pending.onPost(challenge)
+                } else {
+                    store.startCapture(challenge)
+                }
             } label: {
                 Label(myPost == nil ? "Post it" : "Post again", systemImage: "camera.fill")
             }
@@ -106,7 +132,40 @@ struct ChallengeDetailView: View {
             .background(.bar)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: submitTaps)
+        .sensoryFeedback(.success, trigger: addTaps)
         .toast($toast)
+        .toolbar {
+            if let pending {
+                ToolbarItem(placement: .topBarTrailing) {
+                    // Text labels: iOS 26 toolbars show only the icon of a Label.
+                    if isOnPendingList {
+                        Text("Added ✓")
+                            .font(.app(.subheadline, weight: .semibold))
+                            .foregroundStyle(Theme.teal)
+                            .padding(.horizontal, 6)
+                    } else {
+                        Button {
+                            addToPendingList()
+                            toast = "Added to \(store.list(pending.listID)?.name ?? "your list")"
+                        } label: {
+                            Text("Add to list")
+                                .font(.app(.subheadline, weight: .semibold))
+                                .padding(.horizontal, 6)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func addToPendingList() {
+        guard let pending, !isOnPendingList else { return }
+        withAnimation {
+            if pending.isDraft { store.addCustomChallenge(challenge, to: pending.listID) }
+            else { store.addItem(challenge.id, to: pending.listID) }
+        }
+        addTaps += 1
+        pending.onAdded(challenge)
     }
 
     @ViewBuilder

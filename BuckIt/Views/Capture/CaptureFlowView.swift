@@ -21,6 +21,13 @@ struct CaptureFlowView: View {
     @State private var coupon: Coupon?
     @State private var postID: UUID?
 
+    /// Cover photos (bundled asset names) for an item posted with its demo photo, e.g. Visa's airplane tickets.
+    private var coverNames: [String] {
+        guard let challenge, let photo,
+              photo.accessibilityIdentifier == SeedData.demoPhotoName(for: challenge) else { return [] }
+        return SeedData.demoCoverPhotoNames[challenge.id] ?? []
+    }
+
     /// The item being posted: fixed by the request, or chosen in the preview.
     private var challenge: Challenge? {
         request.challenge ?? challengeID.flatMap { store.challenge($0) }
@@ -41,7 +48,9 @@ struct CaptureFlowView: View {
 
             case .preview:
                 if let photo {
-                    CapturePreviewView(fixedChallenge: request.challenge, photo: photo, selfie: selfie, capturedAt: capturedAt,
+                    CapturePreviewView(fixedChallenge: request.challenge, photo: photo,
+                                       covers: coverNames.compactMap { UIImage(named: $0) },
+                                       selfie: selfie, capturedAt: capturedAt,
                                        listID: $listID, challengeID: $challengeID,
                                        locationName: $locationName, tagged: $tagged, caption: $caption,
                                        onRetake: { withAnimation(.smooth) { stage = .camera } },
@@ -54,7 +63,8 @@ struct CaptureFlowView: View {
                     VerificationView(challenge: challenge, photo: photo, evidence: evidence,
                                      onVerified: { _ in post(verified: true) },
                                      onPostAnyway: { post(verified: false) },
-                                     onRetake: { withAnimation(.smooth) { stage = .camera } })
+                                     onRetake: { withAnimation(.smooth) { stage = .camera } },
+                                     onClose: close)
                         .transition(.opacity)
                 }
 
@@ -102,7 +112,8 @@ struct CaptureFlowView: View {
         guard let photo, let challenge else { return }
         let result = store.completeChallenge(challenge, listID: listID, photo: photo, selfie: selfie,
                                              locationName: locationName, date: capturedAt,
-                                             taggedUserIDs: Array(tagged), caption: caption, verified: verified)
+                                             taggedUserIDs: Array(tagged), caption: caption, verified: verified,
+                                             coverPhotoNames: coverNames)
         postID = result.post.id
         coupon = result.coupon
         withAnimation(.smooth) { stage = result.coupon != nil ? .reward : .posted }
