@@ -16,23 +16,6 @@ You don't need packages or accounts. A Gemini key is optional (see below); witho
 
 To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capabilities**, and choose your (free) Apple ID team. If the bundle ID `com.dubhacks26.buckit` is taken, change it to something unique.
 
-## The 60-second demo script
-
-| # | Do this | You'll see |
-|---|---|---|
-| 1 | Launch → **Continue as Buck It** | Animated bucket logo and the tagline. |
-| 2 | Preferences: City **Seattle**, Season **Summer** → **Next** | These values are pre-filled. Other cities show as "coming soon". Commitment isn't asked at setup; it can be changed later from Profile. |
-| 3 | **Allow access** → **Add** Dylan/Maya → **Invite** Sam → **Done** | Fake contact sync. Added friends join your first list, Seattle Summer 2026. On the Simulator, Invite copies the link and shows a toast. On a phone, it opens Messages. |
-| 4 | Home | Friends' posts with real Seattle photos, reactions and comments, and list filter chips. Headers name everyone who did it together ("Maya and Priya"); tap a name to see that person's profile. Priya's post carries a **Sponsored: Patagonia** tag on the photo. |
-| 5 | **Challenges → Sponsored → Patagonia "Hike 5+ miles"** | Two dropdowns filter by time commitment and activity type. **Add to list** puts it on any of your lists that don't have it yet. |
-| 6 | **Post it** | The camera opens. |
-| 7 | **Use demo photo** (Simulator) or snap a photo, then a selfie (phone). Tag a friend → **Post** | The location and time chips fill in automatically. |
-| 8 | Verification | "Verifying with Gemini…": Gemini checks the photo against the item, and the app checks when and where it was taken. Each check ticks off with Gemini's reason, then a green check with confetti. |
-| 9 | Coupon reveal | The card flips to "15% off one item" at Patagonia, then "Saved to Wallet". Tap **Done**. |
-| 10 | Home → **Challenges** → **Profile** | The post is at the top of the feed, and the Patagonia card has dropped off the Sponsored list. The moment the post goes up, the bucket (seeded at 9/10, one colored layer per activity type) gets its 10th layer and **overflows** on whatever screen you're on: water in the bucket's colors floods the screen with confetti, and Profile shows a new empty Bucket #2. |
-| 11 | **Profile → Wallet** | The coupon shows its code (e.g. `PATA-7XK2QM`), a QR code and its expiry. **Mark as used** asks what you bought and can share it on your post. |
-| 12 | **Sponsor View** tab | Patagonia's dashboard: who it targets (≥60% Outdoors), how many people that reaches, and the funnel. Your own steps from the demo count live. The purchase you just shared is at the top of "What people bought". |
-
 ## Demo-day setup
 
 1. Open `BuckIt.xcodeproj`, choose the **iPhone 16 Pro** Simulator, and press ⌘R.
