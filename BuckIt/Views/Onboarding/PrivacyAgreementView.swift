@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Shown right after "Continue" on the sign-in screen, before the account is set up; also viewable from
-/// Profile → Settings. Must be accepted to continue. Content matches AI_SYSTEM.md.
+/// Profile → Settings. Must be accepted to continue. Keep in sync with what the app actually sends.
 struct PrivacyAgreementView: View {
     enum Mode { case accept, view }
 
@@ -109,9 +109,9 @@ struct PrivacyAgreementView: View {
             Section(symbol: "iphone", title: "Stored on your phone",
                     body: "Your name, city, season, lists, posts, photos, selfies and coupons are saved on this device. This demo has no BuckIt account server."),
             Section(symbol: "sparkles", title: "Photo check with Google Gemini",
-                    body: "When you post proof, that photo (resized, with its location data removed) and the item's details are sent to the BuckIt AI server and Google Gemini to check it matches. The server doesn't keep the photo; its audit log keeps only a fingerprint (hash) of it and Gemini's verdict."),
+                    body: "When you post proof, the app sends that photo (resized) to Google Gemini with the item's details, and when and roughly where it was taken, to check it matches. BuckIt doesn't store it anywhere else."),
             Section(symbol: "location.fill", title: "Location",
-                    body: "Your location, or the GPS in a photo, is used on your phone to check a photo was taken near the item. It is never sent to our server or to Gemini."),
+                    body: "Your location, or the GPS in a photo, is used on your phone to check a photo was taken near the item, and is included with the photo check sent to Gemini. It isn't shared with friends or sponsors."),
             Section(symbol: "person.2.fill", title: "Friends and selfies",
                     body: "Friends' names, tags and your selfies are never sent to AI. Contacts are only used if you allow it, to find friends on BuckIt."),
             Section(symbol: "lightbulb.fill", title: "AI suggestions",

@@ -37,7 +37,7 @@ To run on a physical iPhone, select the **BuckIt** target, open **Signing & Capa
 
 1. Open `BuckIt.xcodeproj`, choose the **iPhone 16 Pro** Simulator, and press ⌘R.
 2. Check that the scheme's default location is `Seattle.gpx`: **Product → Scheme → Edit Scheme → Run → Options → Default Location**. It's preset to Discovery Park. If Xcode shows "None", pick `Seattle.gpx` from the list. If no location is available, the app uses "Discovery Park, Seattle".
-3. **Profile → Settings → Reset demo** before presenting. This returns the app to the sign-in screen with a clean state.
+3. **Profile → Settings → Reset app & start over** before presenting. This wipes everything and returns to the create-account screen, so the demo starts with the privacy agreement.
 4. On the Simulator, use **Use demo photo** at the camera step. On a real iPhone connected by cable and signed with a free Apple ID team, the live back-then-front BeReal-style camera works.
 5. For a bigger screen, open QuickTime → **New Movie Recording** and select the iPhone to mirror a physical device. You can also just present the Simulator window.
 
@@ -85,12 +85,16 @@ Clean-build (⇧⌘K) and run. **Profile → Settings → Photo check** shows wh
 
 > The key travels through `Info.plist` into the app bundle, which is fine for a hackathon. A production app would proxy Gemini calls through a server so the key never ships to clients.
 
+### UW Purple (Cloudforce)
+
+With `CLOUDFORCE = YES` (the default in `Config/BuckIt.xcconfig`), a **Need more ideas?** card links to our Side Kick agent on UW Purple. It's on the last onboarding step, under **Create list** in Profile, and in a list's **+ → ✨ Ideas** tab, and it opens in an in-app browser. Set `CLOUDFORCE = NO` to remove every mention of UW Purple.
+
 ## Project layout
 
 ```
 BuckIt.xcodeproj            Xcode 16 project (synchronized folder, so new files are picked up automatically)
 Config/
-  BuckIt.xcconfig           GEMINI_* / FORCE_VERIFY defaults; includes Secrets.xcconfig (gitignored) if present
+  BuckIt.xcconfig           GEMINI_* / CLOUDFORCE / FORCE_VERIFY defaults; includes Secrets.xcconfig (gitignored) if present
   Secrets.example.xcconfig  template → copy to Secrets.xcconfig
   Info.plist                privacy usage strings, bundled fonts, config keys
 BuckIt/
@@ -101,7 +105,7 @@ BuckIt/
   Data/SeedPictures/        photos for the Seattle items and demo posts
   Services/                 GeminiClient (+ IdeaGenerator), VerificationService (EXIF evidence), LocationService, CameraService, PhotoStore
   Views/
-    Onboarding/             SignInView, PreferencesView (+ OnboardingFlow), InviteFriendsView
+    Onboarding/             SignInView, PrivacyAgreementView, PreferencesView (+ OnboardingFlow), InviteFriendsView
     Home/                   FeedView, PostCardView (+ DualPhotoView), CommentsSheet
     Challenges/             ChallengesView, ChallengeCardView, ChallengeDetailView
     Capture/                CaptureFlowView, CaptureView, CapturePreviewView (+ list/item picker), VerificationView, CouponRevealView (+ PostedView)
@@ -116,10 +120,10 @@ BuckIt/
 
 Design: Playfair Display for titles and DM Sans for everything else (both SIL Open Font License, see `Licenses/`), with a palette of #05668D, #028090 and #513B56 (primary) plus #B0A3D4 and #F0F3BD (secondary). Colors live in `Assets.xcassets` as `Brand*` color sets with dark-mode variants. Fonts are set up in `Views/Components/Theme.swift`.
 
-Debug builds accept launch arguments for jumping past onboarding: `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
+Debug builds accept launch arguments for jumping past onboarding: `-resetApp` (wipes everything and starts at the create-account screen; add `-signedIn` to land on the privacy agreement), `-skipOnboarding`, `-tab home|challenges|profile|sponsor`, `-openList <name prefix>` (Challenges), `-openProfileList <name prefix>` and `-openFriend <first name>` (Profile), `-geminiSelfTest` (runs a real photo check and idea generation and prints the results to the Xcode console), and `-completeDemo` (posts the Patagonia hike so the overflow plays on the current tab).
 
 Notes:
 - The category enum is `ChallengeCategory` so it doesn't clash with the Objective-C runtime's `Category`.
-- State is saved as JSON in the app's Documents directory (`buckit-demo-state-v4.json`), with photos under `Documents/photos/`. It survives relaunches. **Reset demo** clears both.
+- State is saved as JSON in the app's Documents directory (`buckit-demo-state-v4.json`), with photos under `Documents/photos/`. It survives relaunches. **Profile → Settings → Reset app & start over** clears both and returns to the create-account screen.
 - Item and feed photos come from `BuckIt/Data/SeedPictures/` (referenced by filename in `SeedData.swift`). On the Simulator, **Use demo photo** posts `rattlesnake.jpg`.
 - Sponsor badges use SF Symbols and brand colors. Each `Sponsor` has a `logoAsset` slot: add an image with that name to the asset catalog, only with the brand's permission, and the badge will use it. Every coupon carries a **DEMO** tag.

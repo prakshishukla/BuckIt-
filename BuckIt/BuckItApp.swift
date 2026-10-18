@@ -6,7 +6,6 @@ struct BuckItApp: App {
 
     init() {
         AppearanceSetup.apply()
-        AIClient.warmUp()
     }
 
     var body: some Scene {

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLOUDFORCE</key>
+	<string>$(CLOUDFORCE)</string>
 	<key>FORCE_VERIFY</key>
 	<string>$(FORCE_VERIFY)</string>
 	<key>GEMINI_API_KEY</key>
