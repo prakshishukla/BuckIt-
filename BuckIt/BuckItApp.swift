@@ -6,6 +6,7 @@ struct BuckItApp: App {
 
     init() {
         AppearanceSetup.apply()
+        AIClient.warmUp()
     }
 
     var body: some Scene {
@@ -18,7 +19,7 @@ struct BuckItApp: App {
     }
 }
 
-/// Sign in → onboarding → tabs.
+/// Sign in → privacy agreement → onboarding → tabs.
 struct RootView: View {
     @Environment(AppStore.self) private var store
 
@@ -27,6 +28,9 @@ struct RootView: View {
             if !store.state.hasSignedIn {
                 SignInView()
                     .transition(.opacity)
+            } else if store.state.privacyAcceptedAt == nil {
+                NavigationStack { PrivacyAgreementView() }
+                    .transition(.move(edge: .trailing))
             } else if !store.state.hasOnboarded {
                 OnboardingFlow()
                     .transition(.move(edge: .trailing))
@@ -37,6 +41,7 @@ struct RootView: View {
         }
         .animation(.smooth(duration: 0.45), value: store.state.hasSignedIn)
         .animation(.smooth(duration: 0.45), value: store.state.hasOnboarded)
+        .animation(.smooth(duration: 0.45), value: store.state.privacyAcceptedAt)
     }
 }
 

@@ -6,6 +6,7 @@ or the user's GPS coordinates (the app doesn't send them).
 """
 
 import json
+import sys
 import threading
 from datetime import datetime, timezone
 from typing import Any
@@ -20,5 +21,8 @@ def record(entry: dict[str, Any]) -> None:
     path = settings.audit_log_path
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(entry, ensure_ascii=False, default=str)
-    with _lock, path.open("a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    with _lock:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+        # Also to stdout, so hosted deploys (whose disks are wiped on restart) keep the trail in their logs.
+        print("AUDIT " + line, file=sys.stdout, flush=True)

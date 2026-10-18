@@ -25,6 +25,25 @@ The app reads the server's address from `BUCKIT_API_URL` in `Config/BuckIt.xccon
 
 Quick check: `curl 127.0.0.1:8000/health`. API docs are served at http://127.0.0.1:8000/docs.
 
+## Deploy (Render, free tier)
+
+The repo root has a [`render.yaml`](../render.yaml) Blueprint.
+
+1. Push the repo to GitHub.
+2. Go to https://dashboard.render.com, then **New → Blueprint**, and pick the repo.
+3. When Render asks for `GEMINI_API_KEY`, paste the key. It's stored in Render's environment only, never in the repo.
+4. Render also generates a random `BUCKIT_APP_TOKEN`. Copy it from **buckit-api → Environment**.
+5. When the deploy is live, check `https://<your-service>.onrender.com/health`.
+6. Point the app at it in `Config/Secrets.xcconfig` (gitignored), then clean-build:
+   ```
+   BUCKIT_API_URL = https:/$()/<your-service>.onrender.com
+   BUCKIT_API_TOKEN = <the token from step 4>
+   ```
+
+Things to know about the free tier:
+- The service sleeps after about 15 minutes idle, and the first request after that takes roughly 30–60 s. The app pings `/health` at launch to wake it, but open `/health` in a browser a minute before you demo anyway.
+- The disk is wiped on every restart. The audit trail is also printed to Render's **Logs** tab: every line starting with `AUDIT` is one AI call.
+
 ## Endpoints
 
 | Endpoint | In | Out |

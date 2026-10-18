@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var editingPreferences = false
     @State private var creatingList = false
     @State private var confirmReset = false
+    @State private var showingPrivacy = false
     @State private var editingColors = false
 
     var body: some View {
@@ -46,10 +47,13 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $creatingList) { CreateListView() }
             .sheet(isPresented: $editingColors) { BucketColorsSheet() }
-            .confirmationDialog("Reset the demo?", isPresented: $confirmReset, titleVisibility: .visible) {
-                Button("Reset demo", role: .destructive) { store.resetDemo() }
+            .confirmationDialog("Reset the app?", isPresented: $confirmReset, titleVisibility: .visible) {
+                Button("Reset app & start over", role: .destructive) { store.resetApp() }
             } message: {
-                Text("Clears posts, coupons and lists and returns to the sign-in screen.")
+                Text("Deletes your posts, photos, coupons and lists on this device and starts again from creating an account.")
+            }
+            .sheet(isPresented: $showingPrivacy) {
+                NavigationStack { PrivacyAgreementView(mode: .view) }
             }
         }
         .onAppear { Task { await store.animateBucketIfNeeded() } }
@@ -197,6 +201,8 @@ struct ProfileView: View {
             }
             .buttonStyle(SecondaryButtonStyle())
 
+            PurpleSideKickLink()
+
             if !store.completedLists.isEmpty {
                 Label("Completed lists", systemImage: "checkmark.seal.fill")
                     .font(.display(.title3))
@@ -232,10 +238,20 @@ struct ProfileView: View {
                 }
                 .padding(.vertical, 10)
                 Divider()
+                Button { showingPrivacy = true } label: {
+                    HStack {
+                        Label("Privacy agreement", systemImage: "hand.raised.fill")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.app(.caption, weight: .semibold)).foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(.primary)
+                }
+                .padding(.vertical, 10)
+                Divider()
                 Button(role: .destructive) {
                     confirmReset = true
                 } label: {
-                    Label("Reset demo", systemImage: "arrow.counterclockwise")
+                    Label("Reset app & start over", systemImage: "arrow.counterclockwise")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.vertical, 10)

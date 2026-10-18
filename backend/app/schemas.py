@@ -101,3 +101,4 @@ class CampaignIdea(BaseModel):
 class CampaignsResponse(BaseModel):
     ideas: list[CampaignIdea]
     meta: Meta
+

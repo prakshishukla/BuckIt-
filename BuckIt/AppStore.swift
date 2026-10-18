@@ -19,6 +19,9 @@ struct CaptureRequest: Identifiable {
 /// Everything that persists across launches.
 struct DemoState: Codable {
     var hasSignedIn = false
+    /// When the privacy agreement was accepted (nil = not yet; shown before account setup).
+    var privacyAcceptedAt: Date? = nil
+    var privacyVersion: String? = nil
     var hasOnboarded = false
     var contactsSynced = false
     var user: User
@@ -70,8 +73,17 @@ final class AppStore {
         #if DEBUG
         // Dev shortcuts for screenshots: `-skipOnboarding`, `-tab home|challenges|profile`, `-openList <name prefix>`.
         let args = ProcessInfo.processInfo.arguments
+        if args.contains("-resetApp") {
+            // Start over from the create-account screen.
+            resetApp()
+        }
+        if args.contains("-signedIn") {
+            // Lands on the privacy agreement (with -resetApp) for screenshots.
+            state.hasSignedIn = true
+        }
         if args.contains("-skipOnboarding") {
             state.hasSignedIn = true
+            state.privacyAcceptedAt = state.privacyAcceptedAt ?? .now
             state.hasOnboarded = true
         }
         if let i = args.firstIndex(of: "-tab"), i + 1 < args.count {
@@ -245,6 +257,18 @@ final class AppStore {
 
     func signIn() {
         update { $0.hasSignedIn = true }
+    }
+
+    func acceptPrivacy(version: String) {
+        update { s in
+            s.privacyAcceptedAt = .now
+            s.privacyVersion = version
+        }
+    }
+
+    /// Declining returns to the sign-in screen; nothing is set up.
+    func declinePrivacy() {
+        update { $0.hasSignedIn = false }
     }
 
     /// Any code works: it joins the Seattle Summer list.
@@ -577,7 +601,9 @@ final class AppStore {
     }
 
     /// Restores the seed state, back to the sign-in screen.
-    func resetDemo() {
+    /// Deletes everything stored on this device (posts, photos, lists, coupons, privacy acceptance) and returns
+    /// to the create-account (sign-in) screen.
+    func resetApp() {
         PhotoStore.deleteAll()
         state = .seed
         persist()

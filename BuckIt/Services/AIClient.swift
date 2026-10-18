@@ -34,9 +34,18 @@ struct AIClient {
 
     private struct ErrorBody: Decodable { var detail: String }
 
+    /// Fire-and-forget GET /health at launch, so a free-tier host that sleeps when idle is awake by the time
+    /// the first real request (often onboarding's Side Kick) arrives.
+    static func warmUp() {
+        guard let client = configured else { return }
+        var request = URLRequest(url: client.baseURL.appending(path: "health"))
+        request.timeoutInterval = 60
+        Task.detached { _ = try? await URLSession.shared.data(for: request) }
+    }
+
     /// POSTs `body` as JSON to `path` and decodes the reply. Keys are snake_case on the wire.
     func post<Body: Encodable, Reply: Decodable>(_ path: String, _ body: Body, as reply: Reply.Type,
-                                                 timeout: TimeInterval = 45) async throws -> Reply {
+                                                 timeout: TimeInterval = 70) async throws -> Reply {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = "POST"
         request.timeoutInterval = timeout

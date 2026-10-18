@@ -94,6 +94,12 @@ enum AppConfig {
     /// Optional shared token the server checks (BUCKIT_APP_TOKEN on the server).
     static var apiToken: String { value("BUCKIT_API_TOKEN") }
 
+    /// YES = show the "Need more ideas?" link to our Side Kick on UW Purple (Cloudforce × DubHacks).
+    /// NO = no mention of UW Purple anywhere in the app.
+    static var cloudforce: Bool {
+        ["YES", "TRUE", "1"].contains(value("CLOUDFORCE").uppercased())
+    }
+
     /// YES = always pass (stage safety net). Default NO: Gemini's verdict decides.
     static var forceVerify: Bool {
         ["YES", "TRUE", "1"].contains(value("FORCE_VERIFY").uppercased())
