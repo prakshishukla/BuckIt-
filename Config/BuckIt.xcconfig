@@ -1,14 +1,10 @@
-// Shared build settings for BuckIt. Nothing here is secret: the Gemini key lives only on the
-// BuckIt AI server (backend/.env). Local overrides go in Config/Secrets.xcconfig (gitignored).
+// Shared build settings for BuckIt.
+// Put your Gemini key in Config/Secrets.xcconfig (gitignored); copy Secrets.example.xcconfig to start.
 
-// Base URL of the BuckIt AI API (backend/). Empty = offline demo mode.
-// ("/$()/" keeps xcconfig from reading "//" as a comment.) On a real device, use your Mac's LAN IP.
-BUCKIT_API_URL = http:/$()/127.0.0.1:8000
-// Optional shared token; must match BUCKIT_APP_TOKEN in backend/.env.
-BUCKIT_API_TOKEN =
-// Cloudforce × DubHacks: YES = show the "Need more ideas?" link to our Side Kick on UW Purple.
-// NO = remove every mention of UW Purple from the app.
-CLOUDFORCE = YES
+// Empty = offline demo verifier.
+GEMINI_API_KEY =
+// Any Gemini vision-capable model id.
+GEMINI_MODEL = gemini-3-flash-preview
 // YES = always pass verification (stage safety net). NO = Gemini's verdict decides.
 FORCE_VERIFY = NO
 

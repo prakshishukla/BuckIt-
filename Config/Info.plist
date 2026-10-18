@@ -2,19 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLOUDFORCE</key>
-	<string>$(CLOUDFORCE)</string>
 	<key>FORCE_VERIFY</key>
 	<string>$(FORCE_VERIFY)</string>
-	<key>BUCKIT_API_TOKEN</key>
-	<string>$(BUCKIT_API_TOKEN)</string>
-	<key>BUCKIT_API_URL</key>
-	<string>$(BUCKIT_API_URL)</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
+	<key>GEMINI_API_KEY</key>
+	<string>$(GEMINI_API_KEY)</string>
+	<key>GEMINI_MODEL</key>
+	<string>$(GEMINI_MODEL)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>PlayfairDisplay-SemiBold.ttf</string>

@@ -80,24 +80,21 @@ protocol VerificationService {
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult
 }
 
-/// Values injected from Config/*.xcconfig through Info.plist. None of these are secret: the Gemini key
-/// lives only on the BuckIt AI server (backend/.env).
+/// Values injected from Config/*.xcconfig through Info.plist.
 enum AppConfig {
     private static func value(_ key: String) -> String {
         let raw = (Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "").trimmingCharacters(in: .whitespaces)
         return raw.hasPrefix("$(") ? "" : raw // unexpanded build setting = unset
     }
 
-    /// Base URL of the BuckIt AI API, e.g. http://127.0.0.1:8000. Empty = offline demo mode.
-    static var apiURL: String { value("BUCKIT_API_URL") }
+    static var geminiAPIKey: String {
+        let key = value("GEMINI_API_KEY")
+        return key == "your-key-here" ? "" : key
+    }
 
-    /// Optional shared token the server checks (BUCKIT_APP_TOKEN on the server).
-    static var apiToken: String { value("BUCKIT_API_TOKEN") }
-
-    /// YES = show the "Need more ideas?" link to our Side Kick on UW Purple (Cloudforce × DubHacks).
-    /// NO = no mention of UW Purple anywhere in the app.
-    static var cloudforce: Bool {
-        ["YES", "TRUE", "1"].contains(value("CLOUDFORCE").uppercased())
+    static var geminiModel: String {
+        let model = value("GEMINI_MODEL")
+        return model.isEmpty ? "gemini-3-flash-preview" : model
     }
 
     /// YES = always pass (stage safety net). Default NO: Gemini's verdict decides.
@@ -108,8 +105,9 @@ enum AppConfig {
 
 enum VerificationServiceFactory {
     static func make() -> any VerificationService {
-        guard let client = AIClient.configured else { return MockVerificationService() }
-        return BackendVerificationService(client: client, forceVerify: AppConfig.forceVerify)
+        let key = AppConfig.geminiAPIKey
+        if key.isEmpty { return MockVerificationService() }
+        return GeminiVerificationService(apiKey: key, model: AppConfig.geminiModel, forceVerify: AppConfig.forceVerify)
     }
 }
 
@@ -141,7 +139,7 @@ enum EvidenceChecks {
 /// Offline verifier used when no Gemini key is configured. The photo checks always pass; the
 /// on-device time/location checks still run for real.
 struct MockVerificationService: VerificationService {
-    var displayName: String { "Offline demo (set BUCKIT_API_URL to enable)" }
+    var displayName: String { "Offline demo (add a Gemini key to enable)" }
     var usesGemini: Bool { false }
 
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult {
@@ -152,55 +150,74 @@ struct MockVerificationService: VerificationService {
     }
 }
 
-// MARK: - Gemini (through the BuckIt AI API)
+// MARK: - Gemini
 
-/// Sends the photo + the item's criteria to the BuckIt AI API, which asks Gemini vision for a strict JSON verdict
-/// and applies the confidence threshold. The verdict is combined with on-device checks of the photo's
-/// timestamp and location. GPS coordinates never leave the phone.
-struct BackendVerificationService: VerificationService {
-    let client: AIClient
+/// Sends the photo + the item's criteria to Gemini's vision model and asks for a strict JSON verdict,
+/// then combines it with on-device checks of the photo's timestamp and location.
+struct GeminiVerificationService: VerificationService {
+    let apiKey: String
+    let model: String
     let forceVerify: Bool
 
-    var displayName: String {
-        "Gemini via \(client.baseURL.host() ?? "BuckIt API")" + (forceVerify ? " · force-verify" : "")
-    }
+    var displayName: String { "Gemini · \(model)" + (forceVerify ? " · force-verify" : "") }
     var usesGemini: Bool { true }
 
-    private struct Request: Encodable {
-        struct Item: Encodable { var title: String; var description: String; var location: String?; var criteria: [String] }
-        var item: Item
-        var photoJpegBase64: String
-        var takenAt: Date
-        var dateSource: String
-    }
-
-    private struct Verdict: Decodable {
-        struct Item: Decodable { var criterion: String; var met: Bool; var why: String }
-        var criteria: [Item]
-        var confidence: Double
-        /// Server-side: matches AND every criterion met AND confidence >= threshold.
-        var verified: Bool
-        var meta: AIClient.Meta
-    }
 
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult {
         do {
-            guard let jpeg = photo.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else { throw CocoaError(.fileWriteUnknown) }
-            let request = Request(item: .init(title: challenge.title, description: challenge.description,
-                                              location: challenge.location, criteria: challenge.verificationCriteria),
-                                  photoJpegBase64: jpeg.base64EncodedString(), takenAt: evidence.date, dateSource: evidence.dateSource)
-            let verdict = try await client.post("verify", request, as: Verdict.self)
+            let verdict = try await askGemini(photo: photo, challenge: challenge, evidence: evidence)
             let photoChecks = verdict.criteria.map { CriterionResult(criterion: $0.criterion, met: $0.met, why: $0.why) }
             let evidenceChecks = EvidenceChecks.run(evidence, challenge: challenge)
-            let passed = verdict.verified && evidenceChecks.allSatisfy(\.met)
+            let passed = verdict.matches && photoChecks.allSatisfy(\.met) && evidenceChecks.allSatisfy(\.met)
             return VerificationResult(verified: forceVerify || passed, criteria: photoChecks + evidenceChecks,
                                       confidence: verdict.confidence, source: "Gemini")
         } catch {
             guard forceVerify, !(error is CancellationError) else { throw error }
-            print("BuckIt: verification failed, force-verify fallback: \(error)")
-            let checks = challenge.verificationCriteria.map { CriterionResult(criterion: $0, met: true, why: "AI server unreachable: force-verify fallback") }
+            print("BuckIt: Gemini verification failed, force-verify fallback: \(error)")
+            let checks = challenge.verificationCriteria.map { CriterionResult(criterion: $0, met: true, why: "Gemini unreachable: force-verify fallback") }
             return VerificationResult(verified: true, criteria: checks + EvidenceChecks.run(evidence, challenge: challenge),
                                       confidence: 0, source: "Demo")
         }
+    }
+
+    private struct Verdict: Decodable {
+        struct Item: Decodable { var criterion: String; var met: Bool; var why: String }
+        var matches: Bool
+        var criteria: [Item]
+        var confidence: Double
+    }
+
+
+    private func askGemini(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> Verdict {
+        guard let jpeg = photo.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else { throw CocoaError(.fileWriteUnknown) }
+
+        let criteriaList = challenge.verificationCriteria.map { "- \($0)" }.joined(separator: "\n")
+        let metadata = [
+            "Taken: \(evidence.date.formatted(date: .abbreviated, time: .shortened)) (\(evidence.dateSource))",
+            evidence.location.map { String(format: "Location: %.4f, %.4f (%@)", $0.coordinate.latitude, $0.coordinate.longitude, evidence.locationSource) }
+                ?? "Location: unknown",
+        ].joined(separator: "\n")
+
+        let prompt = """
+        You are the proof checker for BuckIt, a Seattle app where friends complete bucket-list items and post a photo as proof.
+
+        Item: \(challenge.title)
+        Description: \(challenge.description)
+        Where: \(challenge.location ?? "anywhere")
+        Photo metadata (for context only):
+        \(metadata)
+
+        Criteria to judge from the photo:
+        \(criteriaList)
+
+        Judge ONLY from what is visible in the photo. Be fair (casual phone photos are fine) but not gullible: \
+        a photo that clearly shows something unrelated to the item does not match.
+
+        Respond with strict JSON only, no markdown:
+        {"matches": bool, "criteria": [{"criterion": string, "met": bool, "why": string}], "confidence": number between 0 and 1}
+        Use each criterion's text exactly as given, in the same order. Keep each "why" under 12 words.
+        """
+
+        return try await GeminiClient(apiKey: apiKey, model: model).generate(Verdict.self, prompt: prompt, jpeg: jpeg)
     }
 }
