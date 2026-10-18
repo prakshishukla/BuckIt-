@@ -129,6 +129,14 @@ struct AddItemSheet: View {
                      : "Gemini suggests items based on this list, your city and the season.")
             }
 
+            if AppConfig.cloudforce {
+                Section {
+                    PurpleSideKickLink()
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+
             if let ideaError {
                 Text(ideaError).font(.app(.footnote)).foregroundStyle(.red)
             }

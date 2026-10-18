@@ -81,6 +81,14 @@ struct InviteFriendsView: View {
                 TextField("List name", text: $listName)
                     .font(.display(.body, weight: .semibold))
             }
+
+            if AppConfig.cloudforce {
+                Section {
+                    PurpleSideKickLink()
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {

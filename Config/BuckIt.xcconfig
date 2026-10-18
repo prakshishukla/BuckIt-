@@ -6,6 +6,9 @@
 BUCKIT_API_URL = http:/$()/127.0.0.1:8000
 // Optional shared token; must match BUCKIT_APP_TOKEN in backend/.env.
 BUCKIT_API_TOKEN =
+// Cloudforce × DubHacks: YES = show the "Need more ideas?" link to our Side Kick on UW Purple.
+// NO = remove every mention of UW Purple from the app.
+CLOUDFORCE = YES
 // YES = always pass verification (stage safety net). NO = Gemini's verdict decides.
 FORCE_VERIFY = NO
 

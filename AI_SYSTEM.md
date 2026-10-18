@@ -85,6 +85,10 @@ In **Sponsor View → Suggest campaigns**, Gemini proposes the next sponsored ch
 - **Output:** 3 ideas, each `{title, challenge, audience, why}`. The `why` must cite the data.
 - **Human in the loop:** these are suggestions shown to the sponsor. Nothing is launched automatically.
 
+## Consent
+
+Before account setup, every new user sees a **privacy agreement** (`PrivacyAgreementView`). It explains the data handling below in plain words and must be ticked and accepted to continue; **Decline** returns to the sign-in screen. The acceptance time and version are stored on the device. Anyone can reread the agreement from **Profile → Settings → Privacy agreement**, and **Reset app & start over** deletes everything, including the acceptance.
+
 ## Human oversight
 
 - **Every verification step is visible.** The verification screen shows each criterion, Gemini's one-line reason, a ✓ or ✗, and the confidence. Nothing is decided behind the scenes.
@@ -95,6 +99,10 @@ In **Sponsor View → Suggest campaigns**, Gemini proposes the next sponsored ch
   Either way, an unverified post never unlocks a sponsor coupon. AI can block a reward, but it can't stop anyone from sharing their own photo.
 - **Generated content needs a person's choice.** AI ideas, both list ideas and campaign ideas, are only ever suggestions. A person picks which ones to use.
 - **Settings show the active mode.** **Profile → Settings → Photo check** shows whether checks go through Gemini (and which server) or run in offline demo mode.
+
+### Related: our UW Purple agent
+
+When the `CLOUDFORCE` build flag is `YES` (the default, in `Config/BuckIt.xcconfig`), onboarding's last step links to our **BuckIt Side Kick** agent on UW Purple ("Need more ideas?"). With `CLOUDFORCE = NO`, the link and every mention of Purple, including in the privacy agreement, are removed. It opens in an in-app browser. BuckIt sends it no data and reads nothing back; what someone types there is between them and Purple.
 
 ## Fallback modes
 

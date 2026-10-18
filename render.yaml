@@ -1,0 +1,23 @@
+# Render Blueprint for the BuckIt AI API (backend/). New → Blueprint → pick this repo.
+# Secrets are set in the Render dashboard, never in this file.
+services:
+  - type: web
+    name: buckit-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # --proxy-headers so the per-IP rate limit sees real client IPs behind Render's proxy.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.6
+      - key: GEMINI_API_KEY
+        sync: false          # Render asks for it when you create the Blueprint
+      - key: BUCKIT_APP_TOKEN
+        generateValue: true  # random token; copy it into Config/Secrets.xcconfig as BUCKIT_API_TOKEN
+      - key: GEMINI_MODEL
+        value: gemini-3-flash-preview
+      - key: CONFIDENCE_THRESHOLD
+        value: "0.7"
