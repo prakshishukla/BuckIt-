@@ -106,23 +106,23 @@ final class AppStore {
                               date: .now, taggedUserIDs: [], caption: "", verified: true)
         }
         if args.contains("-geminiSelfTest") {
-            // Exercises the real AI paths (through the BuckIt AI API) and prints the results to the console.
+            // Exercises the real Gemini paths and prints the results to the console.
             Task {
-                print("AI TEST · mode: \(verifier.displayName)")
+                print("GEMINI TEST · mode: \(verifier.displayName)")
                 if let hike = SeedData.challenge(SeedData.patagoniaHikeID), let photo = UIImage(named: SeedData.demoPhotoName) {
                     let evidence = PhotoEvidence(location: LocationService.seattle, date: .now,
                                                  locationSource: "phone location", dateSource: "capture time")
                     do {
                         let r = try await verifier.verify(photo: photo, challenge: hike, evidence: evidence)
-                        print("AI TEST · verify: verified=\(r.verified) source=\(r.source) confidence=\(r.confidence)")
-                        r.criteria.forEach { print("AI TEST ·   [\($0.met ? "✓" : "✗")] \($0.criterion): \($0.why)") }
-                    } catch { print("AI TEST · verify error: \(error.localizedDescription)") }
+                        print("GEMINI TEST · verify: verified=\(r.verified) source=\(r.source) confidence=\(r.confidence)")
+                        r.criteria.forEach { print("GEMINI TEST ·   [\($0.met ? "✓" : "✗")] \($0.criterion): \($0.why)") }
+                    } catch { print("GEMINI TEST · verify error: \(error.localizedDescription)") }
                 }
                 do {
                     let ideas = try await IdeaGenerator.generate(listName: "PNW Trails", existingTitles: [], city: "Seattle",
                                                                  season: .summer, mood: "rainy day")
-                    print("AI TEST · ideas fromGemini=\(ideas.fromGemini): " + ideas.ideas.map(\.title).joined(separator: " | "))
-                } catch { print("AI TEST · ideas error: \(error.localizedDescription)") }
+                    print("GEMINI TEST · ideas fromGemini=\(ideas.fromGemini): " + ideas.ideas.map(\.title).joined(separator: " | "))
+                } catch { print("GEMINI TEST · ideas error: \(error.localizedDescription)") }
             }
         }
         if let i = args.firstIndex(of: "-openFriend"), i + 1 < args.count,

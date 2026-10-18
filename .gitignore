@@ -7,10 +7,3 @@ DerivedData/
 build/
 *.xcuserstate
 .DS_Store
-
-# Backend
-backend/.env
-backend/.venv/
-backend/logs/
-__pycache__/
-.pytest_cache/
