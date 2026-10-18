@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// "+" on a list in Profile: add items from the catalog, or write your own.
+/// "+" on a list in Profile: add items from the catalog, generate ideas with Gemini, or write your own.
 struct AddItemSheet: View {
     enum Source: String, CaseIterable, Identifiable {
         case catalog = "Browse"
+        case ideas = "✨ Ideas"
         case custom = "Your own"
         var id: String { rawValue }
     }
@@ -21,6 +22,13 @@ struct AddItemSheet: View {
     @State private var category: ChallengeCategory = .outdoors
     @State private var toast: String?
     @State private var adds = 0
+    // Gemini ideas
+    @State private var mood = ""
+    @State private var ideas: [ItemIdea] = []
+    @State private var picked: Set<UUID> = []
+    @State private var generating = false
+    @State private var ideasFromGemini = false
+    @State private var ideaError: String?
 
     var body: some View {
         NavigationStack {
@@ -34,6 +42,7 @@ struct AddItemSheet: View {
 
                 switch source {
                 case .catalog: catalog
+                case .ideas: ideasView
                 case .custom: customForm
                 }
             }
@@ -94,6 +103,105 @@ struct AddItemSheet: View {
             }
         }
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search items")
+    }
+
+    private var ideasView: some View {
+        List {
+            Section {
+                TextField("What are you in the mood for? (optional)", text: $mood, axis: .vertical)
+                    .lineLimit(1...3)
+                Button {
+                    Task { await generate() }
+                } label: {
+                    HStack {
+                        if generating { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
+                        Text(generating ? "Generating…" : (ideas.isEmpty ? "Generate ideas" : "Generate more"))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PrimaryButtonStyle(background: Theme.plumFixed))
+                .disabled(generating)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+            } footer: {
+                Text(GeminiClient.configured == nil
+                     ? "Offline demo ideas. Add a Gemini key to generate ideas tailored to this list."
+                     : "Gemini suggests items based on this list, your city and the season.")
+            }
+
+            if let ideaError {
+                Text(ideaError).font(.app(.footnote)).foregroundStyle(.red)
+            }
+
+            if !ideas.isEmpty {
+                Section {
+                    ForEach(ideas) { idea in
+                        let selected = picked.contains(idea.id)
+                        Button {
+                            if selected { picked.remove(idea.id) } else { picked.insert(idea.id) }
+                        } label: {
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundStyle(selected ? Theme.primary : .secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(idea.title).font(.app(.subheadline, weight: .semibold)).foregroundStyle(.primary)
+                                    Text(idea.description).font(.app(.caption)).foregroundStyle(.secondary)
+                                    HStack(spacing: 6) {
+                                        ChipView(text: idea.category.label, symbol: idea.category.symbol, tint: idea.category.tint, compact: true)
+                                        ChipView.commitment(idea.commitment)
+                                    }
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Label(ideasFromGemini ? "Suggested by Gemini" : "Suggestions", systemImage: "sparkles")
+                } footer: {
+                    Text("Tap the ones you want, then add them.")
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !picked.isEmpty {
+                Button {
+                    let chosen = ideas.filter { picked.contains($0.id) }
+                    for idea in chosen {
+                        store.addCustomItem(title: idea.title, description: idea.description, location: idea.location ?? "",
+                                            commitment: idea.commitment, category: idea.category, to: listID)
+                    }
+                    withAnimation { ideas.removeAll { picked.contains($0.id) } }
+                    picked = []
+                    adds += 1
+                    toast = "Added \(chosen.count) \(chosen.count == 1 ? "item" : "items")"
+                } label: {
+                    Label("Add \(picked.count) \(picked.count == 1 ? "item" : "items")", systemImage: "plus")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(.bar)
+            }
+        }
+    }
+
+    private func generate() async {
+        generating = true
+        ideaError = nil
+        defer { generating = false }
+        let existing = (store.list(listID).map { store.challenges(in: $0) } ?? []).map(\.title) + ideas.map(\.title)
+        do {
+            let result = try await IdeaGenerator.generate(listName: store.list(listID)?.name ?? "Bucket list",
+                                                          existingTitles: existing, city: store.me.city,
+                                                          season: store.me.season, mood: mood)
+            withAnimation {
+                ideas = result.ideas + ideas.filter { picked.contains($0.id) }
+                ideasFromGemini = result.fromGemini
+            }
+        } catch {
+            ideaError = error.localizedDescription
+        }
     }
 
     private var customForm: some View {

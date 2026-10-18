@@ -156,17 +156,6 @@ struct GeminiVerificationService: VerificationService {
     var displayName: String { "Gemini · \(model)" + (forceVerify ? " · force-verify" : "") }
     var usesGemini: Bool { true }
 
-    enum GeminiError: LocalizedError {
-        case badImage, http(Int, String), emptyResponse, badJSON(String)
-        var errorDescription: String? {
-            switch self {
-            case .badImage: "Couldn't encode the photo."
-            case .http(let code, let body): "Gemini returned HTTP \(code). \(body.prefix(160))"
-            case .emptyResponse: "Gemini returned no answer."
-            case .badJSON(let text): "Gemini's answer wasn't valid JSON: \(text.prefix(120))"
-            }
-        }
-    }
 
     func verify(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> VerificationResult {
         do {
@@ -192,19 +181,9 @@ struct GeminiVerificationService: VerificationService {
         var confidence: Double
     }
 
-    private struct GenerateResponse: Decodable {
-        struct Candidate: Decodable {
-            struct Content: Decodable {
-                struct Part: Decodable { var text: String? }
-                var parts: [Part]?
-            }
-            var content: Content?
-        }
-        var candidates: [Candidate]?
-    }
 
     private func askGemini(photo: UIImage, challenge: Challenge, evidence: PhotoEvidence) async throws -> Verdict {
-        guard let jpeg = photo.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else { throw GeminiError.badImage }
+        guard let jpeg = photo.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else { throw CocoaError(.fileWriteUnknown) }
 
         let criteriaList = challenge.verificationCriteria.map { "- \($0)" }.joined(separator: "\n")
         let metadata = [
@@ -233,42 +212,6 @@ struct GeminiVerificationService: VerificationService {
         Use each criterion's text exactly as given, in the same order. Keep each "why" under 12 words.
         """
 
-        let imagePart: [String: Any] = [
-            "inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()] as [String: String],
-        ]
-        let textPart: [String: Any] = ["text": prompt]
-        let content: [String: Any] = ["role": "user", "parts": [textPart, imagePart] as [[String: Any]]]
-        let generationConfig: [String: Any] = ["temperature": 0, "response_mime_type": "application/json"]
-        let body: [String: Any] = [
-            "contents": [content] as [[String: Any]],
-            "generationConfig": generationConfig,
-        ]
-
-        let modelPath = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
-        var request = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelPath):generateContent")!)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 25
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw GeminiError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
-        }
-
-        let decoded = try JSONDecoder().decode(GenerateResponse.self, from: data)
-        guard let text = decoded.candidates?.first?.content?.parts?.compactMap(\.text).joined(), !text.isEmpty else {
-            throw GeminiError.emptyResponse
-        }
-        let cleaned = text
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            return try JSONDecoder().decode(Verdict.self, from: Data(cleaned.utf8))
-        } catch {
-            throw GeminiError.badJSON(cleaned)
-        }
+        return try await GeminiClient(apiKey: apiKey, model: model).generate(Verdict.self, prompt: prompt, jpeg: jpeg)
     }
 }

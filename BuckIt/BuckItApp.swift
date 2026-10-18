@@ -55,6 +55,9 @@ struct MainTabView: View {
             ProfileView()
                 .tabItem { Label("Profile", systemImage: "person.fill") }
                 .tag(AppTab.profile)
+            SponsorView()
+                .tabItem { Label("Sponsor View", systemImage: "chart.bar.xaxis") }
+                .tag(AppTab.sponsor)
         }
         .fullScreenCover(item: $store.activeCapture) { request in
             CaptureFlowView(request: request)

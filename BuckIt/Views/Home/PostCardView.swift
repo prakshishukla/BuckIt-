@@ -62,6 +62,15 @@ struct PostCardView: View {
                 Text(caption).font(.app(.body))
             }
 
+            if let purchase = post.sharedPurchase, let sponsor = challenge?.sponsor {
+                Label("Used it at \(sponsor.name): \(purchase)", systemImage: "bag.fill")
+                    .font(.app(.caption, weight: .semibold))
+                    .foregroundStyle(Theme.plum)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.lavender.opacity(0.3), in: Capsule())
+            }
+
             if let reward = post.sharedRewardHeadline, let sponsor = challenge?.sponsor {
                 Label("Unlocked \(reward) at \(sponsor.name)", systemImage: "gift.fill")
                     .font(.app(.caption, weight: .semibold))

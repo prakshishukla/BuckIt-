@@ -24,4 +24,6 @@ struct Post: Codable, Identifiable {
     var caption: String?
     /// Set when the author taps "Share to feed" on the coupon reveal.
     var sharedRewardHeadline: String?
+    /// "Got a Better Sweater 🧥" — shared from the wallet after using the coupon.
+    var sharedPurchase: String? = nil
 }

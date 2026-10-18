@@ -5,6 +5,7 @@ struct CouponCardView: View {
     let coupon: Coupon
     var showsActions = true
     @State private var copied = false
+    @State private var sharingPurchase = false
 
     var body: some View {
         let brand = Color(hex: coupon.sponsorColorHex)
@@ -52,9 +53,21 @@ struct CouponCardView: View {
                     .background(.white, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
+            if let note = coupon.purchaseNote {
+                Label("Bought: \(note)", systemImage: "bag.fill")
+                    .font(.app(.subheadline, weight: .semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.white.opacity(0.2), in: Capsule())
+            }
+
             if showsActions {
                 Button {
-                    withAnimation(.snappy) { store.setRedeemed(coupon.id, !coupon.redeemed) }
+                    if coupon.redeemed {
+                        withAnimation(.snappy) { store.setRedeemed(coupon.id, false) }
+                    } else {
+                        sharingPurchase = true
+                    }
                 } label: {
                     Label(coupon.redeemed ? "Used · tap to undo" : "Mark as used",
                           systemImage: coupon.redeemed ? "arrow.uturn.backward" : "checkmark.circle")
@@ -84,10 +97,51 @@ struct CouponCardView: View {
         }
         .saturation(coupon.redeemed ? 0.1 : 1)
         .shadow(color: brand.opacity(0.3), radius: 14, y: 8)
+        .sheet(isPresented: $sharingPurchase) {
+            SharePurchaseSheet(coupon: coupon)
+        }
         .task(id: copied) {
             guard copied else { return }
             try? await Task.sleep(for: .seconds(1.5))
             copied = false
         }
+    }
+}
+
+/// After using a coupon: say what you bought, and optionally share it on your post (sponsors see it too).
+struct SharePurchaseSheet: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let coupon: Coupon
+    @State private var note = ""
+    @State private var shareToFeed = true
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("e.g. Better Sweater fleece 🧥", text: $note)
+                } header: {
+                    Text("What did you get with \(coupon.headline.lowercased())?")
+                }
+                Section {
+                    Toggle("Share it on my post", isOn: $shareToFeed)
+                } footer: {
+                    Text("Your friends see it on your \(coupon.sponsorName) post, and \(coupon.sponsorName) sees it in their Sponsor View.")
+                }
+            }
+            .navigationTitle("Mark as used")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        withAnimation(.snappy) { store.recordPurchase(coupon.id, note: note, shareToFeed: shareToFeed) }
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

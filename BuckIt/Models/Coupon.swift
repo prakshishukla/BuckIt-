@@ -11,6 +11,8 @@ struct Coupon: Codable, Identifiable, Hashable {
     var code: String
     var expiresAt: Date
     var redeemed: Bool
+    /// What they bought with it, shared after marking it used.
+    var purchaseNote: String? = nil
 
     var sponsor: Sponsor { Sponsor(name: sponsorName, colorHex: sponsorColorHex, symbol: sponsorSymbol) }
 }

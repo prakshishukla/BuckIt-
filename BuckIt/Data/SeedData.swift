@@ -295,10 +295,11 @@ enum SeedData {
             Comment(id: UUID(), userID: user, text: text, date: ago(hours))
         }
         func post(_ i: Int, _ user: UUID, _ list: UUID, _ challenge: String, _ photo: String, _ place: String, _ hours: Double,
-                  tagged: [UUID], reactions: [String: [UUID]], comments: [Comment], caption: String, reward: String? = nil) -> Post {
+                  tagged: [UUID], reactions: [String: [UUID]], comments: [Comment], caption: String, reward: String? = nil,
+                  purchase: String? = nil) -> Post {
             Post(id: ids[i], userID: user, listID: list, challengeID: challenge, photoFilename: PhotoStore.assetPrefix + photo,
                  selfieFilename: nil, locationName: place, date: ago(hours), taggedUserIDs: tagged, reactions: reactions,
-                 comments: comments, caption: caption, sharedRewardHeadline: reward)
+                 comments: comments, caption: caption, sharedRewardHeadline: reward, sharedPurchase: purchase)
         }
         return [
             post(0, mayaID, summerListID, "sea-gas-works", "gasworks.jpg", "Gas Works Park, Seattle", 1.5,
@@ -309,7 +310,8 @@ enum SeedData {
                  tagged: [jordanID], reactions: ["🔥": [jordanID, mayaID, dylanID], "🙌": [jordanID]],
                  comments: [c(jordanID, "sandwich summit 🥪", 3.5),
                             c(mayaID, "wait you got 15% off at Patagonia for this?? signing up", 3)],
-                 caption: "5.5 miles and the best lunch view in the state", reward: "15% off one item"),
+                 caption: "5.5 miles and the best lunch view in the state", reward: "15% off one item",
+                 purchase: "Nano Puff jacket 🧥"),
             post(2, dylanID, waterListID, "sea-alki", "alki.jpg", "Alki Beach, West Seattle", 7,
                  tagged: [mayaID], reactions: ["🙌": [mayaID], "😂": [jordanID], "🌊": [priyaID]],
                  comments: [c(mayaID, "save me some fish and chips next time", 6)],
@@ -401,4 +403,70 @@ enum StarterList: String, CaseIterable, Identifiable {
             []
         }
     }
+}
+
+// MARK: - Sponsor View (demo dashboard data)
+
+/// One sponsor's campaign: who it targets, how many people it reached, and how far they got.
+struct SponsorCampaign: Identifiable {
+    var id: String { sponsor.name }
+    var sponsor: Sponsor
+    var challengeID: String
+    /// Audience rule: people whose bucket lists are at least `threshold` of this activity type.
+    var targetCategory: ChallengeCategory
+    var threshold: Double
+    var audienceNote: String
+    /// Active BuckIt users in Seattle.
+    var cityUsers: Int
+    /// Share of users that match the rule at `threshold` (= marketed to).
+    var marketedShare: Double
+    /// Funnel, counted among the people marketed to.
+    var addedToList: Int
+    var waitingForCoupon: Int
+    var redeemed: Int
+    var purchases: [(name: String, item: String, daysAgo: Int)]
+    /// Top neighborhoods in the audience.
+    var neighborhoods: [(String, Double)]
+
+    var marketedTo: Int { Int((Double(cityUsers) * marketedShare).rounded()) }
+
+    /// Share of users whose lists are at least `t` of the target type (seeded curve that passes through `marketedShare` at `threshold`).
+    func share(atThreshold t: Double) -> Double {
+        let k = 2.2
+        let base = marketedShare / pow(1 - threshold, k)
+        return min(1, base * pow(max(0, 1 - t), k))
+    }
+}
+
+extension SeedData {
+    static let cityUsers = 12_480
+
+    static let campaigns: [SponsorCampaign] = [
+        SponsorCampaign(sponsor: patagonia, challengeID: patagoniaHikeID, targetCategory: .outdoors, threshold: 0.6,
+                        audienceNote: "Hikers and trail regulars: at least 60% of their bucket list is Outdoors.",
+                        cityUsers: cityUsers, marketedShare: 0.18, addedToList: 1_142, waitingForCoupon: 386, redeemed: 214,
+                        purchases: [("Priya S.", "Nano Puff jacket", 0), ("Marcus T.", "Baggies shorts", 1), ("Elena R.", "Black Hole duffel", 1),
+                                    ("Sam W.", "Better Sweater fleece", 2), ("Ana L.", "Capilene base layer", 3), ("Kevin H.", "Trucker hat", 4)],
+                        neighborhoods: [("Ballard", 0.22), ("Fremont", 0.17), ("Capitol Hill", 0.14), ("West Seattle", 0.12)]),
+        SponsorCampaign(sponsor: arcteryx, challengeID: arcteryxCampID, targetCategory: .bigTrips, threshold: 0.4,
+                        audienceNote: "Weekend adventurers: at least 40% of their list is Big trips.",
+                        cityUsers: cityUsers, marketedShare: 0.11, addedToList: 604, waitingForCoupon: 141, redeemed: 88,
+                        purchases: [("Jordan L.", "Bird Head toque", 0), ("Mei C.", "Atom hoody", 2), ("Theo B.", "Mantis 26 backpack", 3)],
+                        neighborhoods: [("Wallingford", 0.19), ("Queen Anne", 0.16), ("Green Lake", 0.15), ("U District", 0.11)]),
+        SponsorCampaign(sponsor: costco, challengeID: "spon-costco-bbq", targetCategory: .withFriends, threshold: 0.5,
+                        audienceNote: "Crew planners: at least 50% of their list is With friends.",
+                        cityUsers: cityUsers, marketedShare: 0.24, addedToList: 1_530, waitingForCoupon: 402, redeemed: 359,
+                        purchases: [("Dylan P.", "Kirkland burger patties", 0), ("Rosa M.", "Party-size cooler", 1), ("Ben K.", "Charcoal 2-pack", 2)],
+                        neighborhoods: [("Beacon Hill", 0.18), ("Columbia City", 0.15), ("Ballard", 0.13), ("Northgate", 0.12)]),
+        SponsorCampaign(sponsor: kroger, challengeID: "spon-kroger-dinner", targetCategory: .food, threshold: 0.5,
+                        audienceNote: "Foodies: at least 50% of their list is Food.",
+                        cityUsers: cityUsers, marketedShare: 0.15, addedToList: 812, waitingForCoupon: 230, redeemed: 191,
+                        purchases: [("Maya C.", "Rainier cherries", 0), ("Ollie G.", "Heirloom tomatoes", 2), ("Lin Z.", "Fresh basil + burrata", 3)],
+                        neighborhoods: [("Capitol Hill", 0.21), ("Ravenna", 0.14), ("Fremont", 0.13), ("Madison Park", 0.09)]),
+        SponsorCampaign(sponsor: target, challengeID: "spon-target-fit", targetCategory: .entertainment, threshold: 0.4,
+                        audienceNote: "Event-goers: at least 40% of their list is Entertainment.",
+                        cityUsers: cityUsers, marketedShare: 0.20, addedToList: 977, waitingForCoupon: 265, redeemed: 240,
+                        purchases: [("Jordan L.", "Mariners tee", 0), ("Ivy N.", "Bucket hat", 1), ("Chris O.", "Linen shirt", 2)],
+                        neighborhoods: [("SoDo", 0.17), ("Capitol Hill", 0.16), ("Belltown", 0.14), ("South Lake Union", 0.12)]),
+    ]
 }

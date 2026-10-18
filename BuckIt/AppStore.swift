@@ -1,7 +1,7 @@
 import SwiftUI
 import Observation
 
-enum AppTab: Hashable { case home, challenges, profile }
+enum AppTab: Hashable { case home, challenges, profile, sponsor }
 
 /// Navigation value for opening a list.
 struct ListRoute: Hashable { let id: UUID }
@@ -75,7 +75,7 @@ final class AppStore {
             state.hasOnboarded = true
         }
         if let i = args.firstIndex(of: "-tab"), i + 1 < args.count {
-            selectedTab = ["challenges": .challenges, "profile": .profile][args[i + 1]] ?? .home
+            selectedTab = ["challenges": .challenges, "profile": .profile, "sponsor": .sponsor][args[i + 1]] ?? .home
         }
         if let i = args.firstIndex(of: "-openList"), i + 1 < args.count,
            let list = state.lists.first(where: { $0.name.lowercased().hasPrefix(args[i + 1].lowercased()) }) {
@@ -89,10 +89,9 @@ final class AppStore {
         }
         if args.contains("-completeDemo"), let hike = SeedData.challenge(SeedData.patagoniaHikeID),
            let photo = UIImage(named: SeedData.demoPhotoName) {
-            // Posts the Patagonia hike (the 10th drop) so Profile plays the overflow animation.
+            // Posts the Patagonia hike (the 10th drop): the overflow plays right away on whatever tab is showing.
             completeChallenge(hike, listID: SeedData.trailsListID, photo: photo, selfie: nil, locationName: SeedData.fallbackLocation,
                               date: .now, taggedUserIDs: [], caption: "", verified: true)
-            selectedTab = .profile
         }
         if let i = args.firstIndex(of: "-openFriend"), i + 1 < args.count,
            let friend = state.friends.first(where: { $0.firstName.lowercased() == args[i + 1].lowercased() }) {
@@ -359,6 +358,11 @@ final class AppStore {
                 s.lists[i].challengeIDs.append(challenge.id)
             }
         }
+        // The moment the bucket fills, play the overflow wherever the user is.
+        let count = state.user.completedCount
+        if count % SeedData.dropsPerBucket == 0 {
+            Task { await playOverflow(at: count) }
+        }
         return (post, coupon)
     }
 
@@ -404,6 +408,21 @@ final class AppStore {
     }
 
     // MARK: - Wallet
+
+    /// Marks a coupon used and records what was bought; optionally shares it on the original post.
+    func recordPurchase(_ couponID: UUID, note: String, shareToFeed: Bool) {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        update { s in
+            guard let i = s.user.wallet.firstIndex(where: { $0.id == couponID }) else { return }
+            s.user.wallet[i].redeemed = true
+            s.user.wallet[i].purchaseNote = trimmed.isEmpty ? nil : trimmed
+            let challengeID = s.user.wallet[i].challengeID
+            if shareToFeed, !trimmed.isEmpty,
+               let j = s.posts.firstIndex(where: { $0.userID == s.user.id && $0.challengeID == challengeID }) {
+                s.posts[j].sharedPurchase = trimmed
+            }
+        }
+    }
 
     func setRedeemed(_ couponID: UUID, _ redeemed: Bool) {
         update { s in
@@ -464,32 +483,66 @@ final class AppStore {
         bucketLevel >= 0.999 ? SeedData.dropsPerBucket : bucketShownCount % SeedData.dropsPerBucket
     }
 
-    /// Called when Profile appears: raises the water to match new completions, overflowing at 100%.
+    /// Called when Profile appears: raises the water to match new completions.
+    /// (A full bucket is handled by `playOverflow` the moment it fills.)
     func animateBucketIfNeeded() async {
         let target = state.user.completedCount
-        guard target != bucketShownCount, !isAnimatingBucket else { return }
+        guard target != bucketShownCount, !isAnimatingBucket, overflowColors == nil else { return }
         isAnimatingBucket = true
         defer { isAnimatingBucket = false }
 
         try? await Task.sleep(for: .seconds(0.4))
-        let overflows = target > 0 && target % SeedData.dropsPerBucket == 0
         withAnimation(.spring(duration: 1.0, bounce: 0.35)) {
             bucketShownCount = target
-            bucketLevel = overflows ? 1.0 : Self.level(for: target)
+            bucketLevel = Self.level(for: target)
         }
         splashCount += 1
+    }
 
-        if overflows {
-            // Full bucket: water floods the screen in the bucket's colors, then a fresh empty bucket appears.
-            try? await Task.sleep(for: .seconds(1.3))
-            var colors: [Color] = []
-            for c in bucketCategories { colors.append(waterColor(c)) }
-            withAnimation(.easeIn(duration: 0.2)) { overflowColors = colors.isEmpty ? [Theme.primary] : colors }
-            try? await Task.sleep(for: .seconds(2.6))
-            bucketLevel = 0 // hidden behind the water
-            try? await Task.sleep(for: .seconds(1.4))
-            withAnimation(.easeOut(duration: 0.6)) { overflowColors = nil }
+    /// Full bucket: water in the bucket's colors floods the screen (shown over any page, including the capture
+    /// flow), then a fresh empty bucket is waiting on Profile.
+    func playOverflow(at count: Int) async {
+        var seen: [ChallengeCategory] = []
+        for c in myDrops.prefix(count).suffix(SeedData.dropsPerBucket) where !seen.contains(c) { seen.append(c) }
+        let colors = seen.map { waterColor($0) }
+
+        bucketShownCount = count
+        bucketLevel = 1
+        try? await Task.sleep(for: .seconds(0.6))
+        withAnimation(.easeIn(duration: 0.2)) { overflowColors = colors.isEmpty ? [Theme.primary] : colors }
+        try? await Task.sleep(for: .seconds(3.6))
+        bucketLevel = 0 // hidden behind the water
+        try? await Task.sleep(for: .seconds(1.4))
+        withAnimation(.easeOut(duration: 0.6)) { overflowColors = nil }
+    }
+
+    // MARK: - Sponsor View
+
+    /// Campaign funnel including this demo user's own activity, so the dashboard moves during the demo.
+    func liveFunnel(_ campaign: SponsorCampaign) -> (added: Int, waiting: Int, redeemed: Int) {
+        let onMyList = myLists.contains { $0.challengeIDs.contains(campaign.challengeID) }
+        let coupon = coupon(for: campaign.challengeID)
+        return (campaign.addedToList + (onMyList ? 1 : 0),
+                campaign.waitingForCoupon + (coupon != nil && coupon?.redeemed == false ? 1 : 0),
+                campaign.redeemed + (coupon?.redeemed == true ? 1 : 0))
+    }
+
+    /// Recent "what I bought" shares, newest first (mine on top when I've shared one).
+    func purchases(_ campaign: SponsorCampaign) -> [(name: String, item: String, daysAgo: Int)] {
+        var list = campaign.purchases
+        if let note = coupon(for: campaign.challengeID)?.purchaseNote {
+            list.insert(("\(me.firstName) \(me.lastName.prefix(1)).", note, 0), at: 0)
         }
+        return list
+    }
+
+    /// Share of someone's completed items that are a given activity type.
+    func activityShare(of userID: UUID, _ category: ChallengeCategory) -> (share: Double, total: Int) {
+        let ids = Set(SeedData.allChallenges.map(\.id).filter { hasDone(userID, $0) })
+            .union(state.posts.filter { $0.userID == userID }.map(\.challengeID))
+        let done = ids.compactMap { challenge($0) }
+        guard !done.isEmpty else { return (0, 0) }
+        return (Double(done.filter { $0.category == category }.count) / Double(done.count), done.count)
     }
 
     // MARK: - Settings

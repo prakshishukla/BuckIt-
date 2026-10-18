@@ -72,6 +72,13 @@ struct CaptureFlowView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
+        // The capture flow is a full-screen cover, so it shows the overflow itself (the tab view's copy is underneath).
+        .overlay {
+            if let colors = store.overflowColors {
+                BucketOverflowView(colors: colors, bucketNumber: store.bucketNumber)
+                    .transition(.opacity)
+            }
+        }
         .onAppear {
             listID = request.listID
             location.start()
